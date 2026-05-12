@@ -51,7 +51,20 @@ db.serialize(() => {
 });
 
 app.use(express.json());
-app.use(express.static('public'));
+
+// Servir index.html depuis la racine ET depuis public/
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname)));
+
+// Route fallback — envoie index.html peu importe où il se trouve
+app.get('/', (req, res) => {
+  const fs = require('fs');
+  const publicPath = path.join(__dirname, 'public', 'index.html');
+  const rootPath = path.join(__dirname, 'index.html');
+  if (fs.existsSync(publicPath)) res.sendFile(publicPath);
+  else if (fs.existsSync(rootPath)) res.sendFile(rootPath);
+  else res.status(404).send('index.html introuvable');
+});
 
 const dbAll = (sql, p=[]) => new Promise((res,rej) => db.all(sql,p,(e,r)=>e?rej(e):res(r)));
 const dbRun = (sql, p=[]) => new Promise((res,rej) => db.run(sql,p,function(e){e?rej(e):res(this)}));
