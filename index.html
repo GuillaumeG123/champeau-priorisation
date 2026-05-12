@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Matrice de priorisation — Champeau</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--r:#8B1A1A;--rm:#B22222;--or:#F5E6C8;--vc:#1565C0;--cc:#E65100;--bg:#F5F5F5;--bg2:#EBEBEB;--card:#fff;--border:#E0E0E0;--text:#1A1A1A;--text2:#555;--text3:#888}
+body{font-family:Arial,sans-serif;font-size:13px;color:var(--text);background:var(--bg);min-height:100vh}
+
+/* Header */
+.hdr{background:var(--r);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.hdr h1{color:var(--or);font-size:15px;font-weight:700}
+.kpis{display:flex;gap:8px}
+.kpi{background:rgba(0,0,0,.25);border-radius:6px;padding:4px 12px;text-align:center}
+.kpi .v{color:var(--or);font-size:16px;font-weight:700}
+.kpi .l{color:rgba(245,230,200,.7);font-size:9px}
+
+/* Tabs */
+.tabs{display:flex;background:var(--card);border-bottom:1px solid var(--border);padding:0 16px;gap:2px}
+.tab{padding:10px 16px;font-size:12px;cursor:pointer;border-bottom:3px solid transparent;color:var(--text3);font-weight:500;transition:.15s}
+.tab:hover{color:var(--r)}
+.tab.active{border-bottom-color:var(--r);color:var(--r)}
+
+/* Toolbar */
+.toolbar{display:flex;gap:8px;padding:10px 16px;background:var(--card);border-bottom:1px solid var(--border);flex-wrap:wrap;align-items:center}
+.toolbar select,.toolbar input[type=text]{font-size:11px;padding:5px 10px;border-radius:5px;border:1px solid var(--border);background:var(--card);color:var(--text);height:30px;outline:none}
+.toolbar select:focus,.toolbar input:focus{border-color:var(--r)}
+.toolbar label{font-size:11px;color:var(--text2);font-weight:500}
+.spacer{flex:1}
+.btn{font-size:11px;padding:5px 14px;border-radius:5px;border:1px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;height:30px;white-space:nowrap;font-weight:500;transition:.15s}
+.btn:hover{background:var(--bg)}
+.btn.primary{background:var(--r);color:var(--or);border-color:var(--r)}
+.btn.primary:hover{background:var(--rm)}
+.btn.blue{background:var(--vc);color:white;border-color:var(--vc)}
+.btn.blue:hover{background:#0D47A1}
+
+/* Views */
+.view{display:none;padding:16px}
+.view.active{display:block}
+
+/* Table */
+.table-wrap{background:var(--card);border-radius:8px;border:1px solid var(--border);overflow:hidden}
+.table-scroll{overflow-x:auto;max-height:calc(100vh - 260px);overflow-y:auto}
+table{width:100%;border-collapse:collapse;font-size:11px}
+thead th{background:var(--r);color:white;padding:8px 8px;text-align:center;font-weight:600;font-size:10px;white-space:nowrap;position:sticky;top:0;z-index:2;cursor:pointer;user-select:none}
+thead th:hover{background:var(--rm)}
+thead th.left{text-align:left}
+thead th.sa::after{content:" ▲";font-size:9px}
+thead th.sd::after{content:" ▼";font-size:9px}
+tbody td{padding:6px 8px;border-bottom:1px solid var(--bg2);vertical-align:middle}
+tbody tr:hover td{background:#FEF2F2}
+tbody tr:nth-child(even) td{background:#FAFAFA}
+tbody tr:nth-child(even):hover td{background:#FEF2F2}
+.td-nom{text-align:left;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;color:var(--text);font-weight:500}
+.td-nom:hover{color:var(--r);text-decoration:underline}
+.td-c{text-align:center}
+
+/* Badges */
+.bdg{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600}
+.bdg-A{background:#FDECEA;color:#8B1A1A}
+.bdg-B{background:#FFF3E0;color:#7F4000}
+.bdg-C{background:#FFF8E1;color:#5F4000}
+.bdg-D{background:#E8F5E9;color:#1B5E20}
+.bdg-E{background:#E3F2FD;color:#0D47A1}
+.bdg-{background:#F5F5F5;color:#808080}
+.bdg-Actif{background:#E8F5E9;color:#1B5E20}
+.bdg-Attente{background:#FFF3E0;color:#7F4000}
+.bdg-Définition{background:#FFF8E1;color:#5F4000}
+.bdg-Exploratoire{background:#EDE7F6;color:#4527A0}
+.cote-badge{display:inline-block;background:var(--r);color:var(--or);font-weight:700;border-radius:4px;padding:2px 7px;font-size:10px}
+.urg-badge{display:inline-block;background:#FF6B00;color:white;font-weight:600;border-radius:4px;padding:1px 6px;font-size:9px}
+
+/* Date indicators */
+.d-ok{color:#1B5E20;font-size:10px;display:inline-flex;align-items:center;gap:3px}
+.d-warn{color:#E65100;font-size:10px;font-weight:600;display:inline-flex;align-items:center;gap:3px}
+.d-late{color:#8B1A1A;font-size:10px;font-weight:600;display:inline-flex;align-items:center;gap:3px}
+.d-crit-warn{background:#FFF3E0;color:#E65100;font-size:10px;font-weight:600;border-radius:4px;padding:1px 5px}
+.d-crit-late{background:#8B1A1A;color:white;font-size:10px;font-weight:600;border-radius:4px;padding:1px 5px}
+.d-crit-ok{color:#1565C0;font-size:10px;display:inline-flex;align-items:center;gap:3px}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex-shrink:0}
+.dot-ok{background:#2E7D32}.dot-warn{background:#E65100}.dot-late{background:#8B1A1A}
+
+/* Note icon */
+.note-ico{display:inline-block;width:16px;height:16px;border-radius:3px;cursor:pointer;position:relative;vertical-align:middle;transition:.15s}
+.note-ico::after{content:"✎";font-size:10px;color:white;position:absolute;top:1px;left:3px}
+.note-ico.empty{background:var(--r);opacity:.4}
+.note-ico.empty:hover{opacity:.7}
+.note-ico.has{background:var(--vc);opacity:1}
+
+/* Bar chart */
+.bar-wrap{display:flex;align-items:center;gap:3px}
+.bar-fill{height:6px;border-radius:2px;background:var(--r)}
+.bar-num{font-size:9px;color:var(--text3)}
+
+/* Seuils bar */
+.seuils-bar{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:8px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--text2)}
+
+/* Dashboard */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.kpi-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;text-align:center}
+.kpi-card .v{font-size:28px;font-weight:700;color:var(--r)}
+.kpi-card .l{font-size:11px;color:var(--text2);margin-top:3px}
+.kpi-card.warn{border-color:#E65100}
+.kpi-card.warn .v{color:#E65100}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px}
+.card h3{font-size:12px;font-weight:600;color:var(--r);margin-bottom:12px}
+.dist-bars{display:flex;gap:8px;align-items:flex-end;height:90px}
+.dist-col{display:flex;flex-direction:column;align-items:center;gap:3px;flex:1}
+.dist-col .bar{width:100%;border-radius:3px 3px 0 0;min-height:4px;transition:.3s}
+.dist-col .lbl{font-size:10px;color:var(--text3)}
+.dist-col .num{font-size:11px;font-weight:600}
+.pib-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--bg2)}
+.pib-row .pn{flex:1;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pib-row .pw{width:100px;background:var(--bg2);border-radius:2px;height:6px;overflow:hidden;flex-shrink:0}
+.pib-row .pf{height:100%;background:var(--r);border-radius:2px}
+.pib-row .pp{font-size:10px;color:var(--text3);min-width:50px;text-align:right}
+
+/* Grille */
+.grille-table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:16px}
+.grille-table th{background:var(--r);color:white;padding:7px 8px;text-align:center;font-size:10px;font-weight:600}
+.grille-table td{padding:6px 8px;border-bottom:1px solid var(--bg2);text-align:center}
+.formula-box{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;font-size:11px;line-height:2.2;color:var(--text2)}
+.formula-box b{color:var(--text)}
+
+/* Calendrier */
+.cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.cal-nav h3{font-size:13px;font-weight:600;color:var(--r)}
+.cal-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px}
+.cal-month{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px}
+.cal-month h4{text-align:center;font-size:11px;font-weight:700;color:var(--r);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--bg2)}
+.cal-days{display:grid;grid-template-columns:repeat(7,1fr);gap:1px}
+.cal-dow{font-size:9px;text-align:center;color:var(--text3);font-weight:600;padding:3px 0}
+.cal-day{min-height:44px;border-radius:4px;padding:2px 3px;transition:.1s;border:.5px solid transparent}
+.cal-day:hover{background:var(--bg)}
+.cal-day.other{opacity:.35}
+.cal-day.today{background:#FEF2F2;border-color:var(--r)}
+.cal-day .dn{font-size:9px;font-weight:500;color:var(--text3);margin-bottom:2px}
+.cal-day.today .dn{color:var(--r);font-weight:700}
+.cal-evt{border-radius:3px;padding:1px 3px;font-size:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:1px;cursor:default}
+.cal-evt:hover{opacity:.85}
+.ev-visee{background:#DBEAFE;color:#1565C0}
+.ev-crit{background:#FEE2E2;color:#8B1A1A;font-weight:600}
+.ev-crit-warn{background:#FEF3C7;color:#92400E;font-weight:600}
+.ev-crit-late{background:#8B1A1A;color:white;font-weight:600}
+
+/* Timeline */
+.tl-section{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px}
+.tl-section h3{font-size:12px;font-weight:600;color:var(--r);margin-bottom:14px}
+.tl-scroll{overflow-x:auto}
+.tl-header{display:flex;margin-bottom:4px}
+.tl-lbl{width:150px;flex-shrink:0}
+.tl-months{display:flex}
+.tl-month{font-size:9px;font-weight:600;color:var(--r);text-align:center;border-left:1px solid var(--border);flex-shrink:0;padding:2px 0}
+.tl-row{display:flex;margin-bottom:5px;align-items:center;min-height:24px}
+.tl-name{width:150px;flex-shrink:0;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:10px;color:var(--text);cursor:pointer}
+.tl-name:hover{color:var(--r)}
+.tl-track{position:relative;height:20px;background:var(--bg2);border-radius:4px}
+.tl-bar{position:absolute;height:12px;top:4px;border-radius:3px;background:linear-gradient(90deg,#2E7D32,#66BB6A);opacity:.75}
+.tl-dot{position:absolute;width:10px;height:10px;border-radius:50%;top:5px;transform:translateX(-5px);z-index:2;cursor:pointer;border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:.15s}
+.tl-dot:hover{transform:translateX(-5px) scale(1.3)}
+.tl-dot.dv{background:var(--vc)}
+.tl-dot.dc{background:var(--cc)}
+.tl-dot.late{background:var(--r)}
+.tl-today{position:absolute;width:2px;background:var(--r);top:-3px;bottom:-3px;z-index:3;opacity:.7;border-radius:1px}
+.tl-group-hdr{display:flex;align-items:center;margin:8px 0 3px}
+.tl-group-lbl{width:150px;font-size:10px;font-weight:700;color:var(--r);flex-shrink:0}
+.tl-group-line{height:1px;background:var(--border);flex:1}
+
+/* Tooltip */
+.tooltip{position:fixed;background:white;border:1px solid var(--border);border-radius:8px;padding:10px 13px;font-size:11px;z-index:999;pointer-events:none;display:none;max-width:270px;line-height:1.6;box-shadow:0 4px 16px rgba(0,0,0,.15)}
+.tooltip .tt-nom{font-size:12px;font-weight:700;color:var(--r);margin-bottom:5px;padding-bottom:4px;border-bottom:1px solid var(--bg2)}
+.tooltip .tt-txt{color:var(--text);white-space:pre-wrap;font-size:10px}
+.tooltip .tt-empty{color:var(--text3);font-style:italic;font-size:10px}
+.tooltip .tt-hint{font-size:9px;color:var(--text3);margin-top:5px;padding-top:4px;border-top:1px solid var(--bg2)}
+
+/* Modal */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center}
+.overlay.open{display:flex}
+.modal{background:var(--card);border-radius:12px;width:620px;max-height:92vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.2)}
+.modal-hdr{background:var(--r);padding:14px 20px;border-radius:12px 12px 0 0;display:flex;justify-content:space-between;align-items:center}
+.modal-hdr h2{color:var(--or);font-size:14px;font-weight:700}
+.modal-close{background:none;border:none;color:var(--or);font-size:20px;cursor:pointer;opacity:.8;line-height:1}
+.modal-close:hover{opacity:1}
+.modal-body{padding:20px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-full{grid-column:1/-1}
+.form-group label{font-size:10px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.3px}
+.form-group input,.form-group select,.form-group textarea{width:100%;font-size:12px;padding:7px 10px;border-radius:5px;border:1px solid var(--border);background:white;color:var(--text);outline:none;transition:.15s}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--r)}
+.form-group textarea{min-height:70px;resize:vertical;font-family:Arial}
+.section-title{grid-column:1/-1;font-size:11px;font-weight:700;color:var(--r);padding-top:10px;padding-bottom:6px;border-top:1px solid var(--bg2);text-transform:uppercase;letter-spacing:.5px}
+.criteria-row{margin-bottom:10px}
+.criteria-row label{font-size:10px;font-weight:600;color:var(--text2);display:block;margin-bottom:5px}
+.lvl-btns{display:flex;gap:4px}
+.lvl-btn{width:36px;height:30px;border-radius:5px;border:1px solid var(--border);background:var(--bg);cursor:pointer;font-size:12px;font-weight:600;color:var(--text3);transition:.15s}
+.lvl-btn:hover{border-color:var(--r);color:var(--r)}
+.lvl-btn.sel{background:var(--r);color:white;border-color:var(--r)}
+.lvl-desc{font-size:9px;color:var(--text3);margin-top:3px;font-style:italic;min-height:13px}
+.urg-section{grid-column:1/-1;background:#FFF8F0;border:1px solid #FFB74D;border-radius:8px;padding:14px;margin-top:4px}
+.urg-section h4{font-size:11px;font-weight:700;color:#E65100;margin-bottom:10px}
+.urg-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.urg-grid label{font-size:10px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px}
+.urg-grid input{width:100%;font-size:12px;padding:7px 10px;border-radius:5px;border:1px solid #FFB74D;background:white;color:var(--text);outline:none}
+.preview-box{grid-column:1/-1;background:var(--bg);border-radius:8px;padding:14px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:4px;border:1px solid var(--border)}
+.preview-item .pl{font-size:10px;color:var(--text3);margin-bottom:2px}
+.preview-item .pv{font-size:18px;font-weight:700;color:var(--r)}
+.preview-sep{width:1px;height:40px;background:var(--border)}
+.modal-footer{padding:14px 20px;border-top:1px solid var(--bg2);display:flex;justify-content:flex-end;gap:10px}
+
+/* Legend */
+.legend{display:flex;gap:10px;flex-wrap:wrap;font-size:10px;color:var(--text2);margin-bottom:10px;align-items:center}
+.leg-item{display:flex;align-items:center;gap:4px}
+.info-bar{background:#EBF5FB;border:1px solid #AED6F1;border-radius:6px;padding:8px 12px;font-size:11px;color:#1A5276;margin-bottom:10px;border-left:4px solid var(--vc)}
+
+/* Print */
+@media print{
+  .hdr,.tabs,.toolbar,.btn,.no-print{display:none!important}
+  body{background:white;padding:0}
+  .view.active{display:block;padding:8px}
+  .table-scroll{max-height:none;overflow:visible}
+}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <h1>🏭 Matrice de priorisation — Champeau Inc.</h1>
+  <div class="kpis">
+    <div class="kpi"><div class="v" id="k-actifs">0</div><div class="l">Actifs</div></div>
+    <div class="kpi"><div class="v" id="k-total">0</div><div class="l">Total</div></div>
+    <div class="kpi"><div class="v" id="k-pib">—</div><div class="l">PIB/h moy.</div></div>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('liste')">📋 Liste des projets</div>
+  <div class="tab" onclick="switchTab('dash')">📊 Tableau de bord</div>
+  <div class="tab" onclick="switchTab('grille')">⚖️ Grille d'évaluation</div>
+  <div class="tab" onclick="switchTab('cal')">📅 Calendrier</div>
+</div>
+
+<div class="toolbar">
+  <label>État</label>
+  <select id="f-etat" onchange="renderTable()">
+    <option value="">Tous</option>
+    <option value="Actif" selected>Actif</option>
+    <option value="Définition">Définition</option>
+    <option value="Attente">Attente</option>
+    <option value="Exploratoire">Exploratoire</option>
+  </select>
+  <label>Responsable</label>
+  <select id="f-resp" onchange="renderTable()"><option value="">Tous</option></select>
+  <input type="text" id="f-search" placeholder="🔍 Rechercher..." oninput="renderTable()" style="flex:1;min-width:140px">
+  <div class="spacer"></div>
+  <button class="btn blue no-print" onclick="genPDF()">📄 Rapport PDF</button>
+  <button class="btn primary no-print" onclick="openModal()">+ Nouveau projet</button>
+</div>
+
+<!-- LISTE -->
+<div id="view-liste" class="view active">
+  <div id="seuils-bar" class="seuils-bar"></div>
+  <div class="legend">
+    <div class="leg-item"><span class="dot dot-ok"></span>En voie</div>
+    <div class="leg-item"><span class="dot dot-warn"></span>À risque</div>
+    <div class="leg-item"><span class="dot dot-late"></span>En retard</div>
+    <div class="leg-item" style="background:#FFF3E0;padding:1px 7px;border-radius:4px;color:#92400E">⚡ Date critique à risque</div>
+    <div class="leg-item" style="background:#8B1A1A;padding:1px 7px;border-radius:4px;color:white">⚠ Dépassée</div>
+    <div class="leg-item"><span class="note-ico has" style="pointer-events:none"></span> Commentaires</div>
+  </div>
+  <div class="table-wrap">
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th class="left" onclick="sortBy('nom')" style="min-width:165px">Projet</th>
+            <th style="width:22px"></th>
+            <th onclick="sortBy('etat')">État</th>
+            <th onclick="sortBy('resp')">Responsable</th>
+            <th onclick="sortBy('cote')">Cote ↓</th>
+            <th>Classe</th>
+            <th onclick="sortBy('urg')">Urgence</th>
+            <th onclick="sortBy('prog')">Prog.</th>
+            <th onclick="sortBy('datev')">Date visée</th>
+            <th onclick="sortBy('datec')">Date critique</th>
+            <th onclick="sortBy('pib')">PIB/h</th>
+            <th onclick="sortBy('sst')">SST</th>
+            <th onclick="sortBy('arret')">Arrêt</th>
+            <th onclick="sortBy('strat')">Strat.</th>
+            <th onclick="sortBy('jours')">Jours</th>
+            <th style="width:90px"></th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div style="padding:8px 14px;font-size:10px;color:var(--text3);display:flex;justify-content:space-between;background:var(--bg);border-top:1px solid var(--border)">
+      <span id="count-label"></span>
+      <span>* Classe calculée automatiquement — moy ± écart-type | Pond. SST×100 PIB×100 Arrêt×90 Strat×100 ÷ 390</span>
+    </div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="view-dash" class="view">
+  <div class="kpi-grid" id="dash-kpis"></div>
+  <div class="two-col">
+    <div class="card">
+      <h3>Distribution par classe</h3>
+      <div class="dist-bars" id="dist-bars"></div>
+    </div>
+    <div class="card">
+      <h3>Top PIB/h — actifs</h3>
+      <div id="top-pib"></div>
+    </div>
+  </div>
+</div>
+
+<!-- GRILLE -->
+<div id="view-grille" class="view">
+  <div class="card" style="margin-bottom:14px">
+    <h3 style="font-size:12px;font-weight:700;color:var(--r);margin-bottom:12px">Table de pondération — scores réels (Excel original)</h3>
+    <div style="overflow-x:auto">
+      <table class="grille-table">
+        <thead><tr>
+          <th style="min-width:35px">Niv.</th>
+          <th style="min-width:90px">SST</th><th>Score</th>
+          <th style="min-width:80px">PIB/h</th><th>Score</th>
+          <th style="min-width:110px">Arrêt potentiel</th><th>Score</th>
+          <th style="min-width:130px">Impact stratégique</th><th>Score</th>
+          <th style="min-width:80px">Nb jours</th><th>Score</th>
+        </tr></thead>
+        <tbody id="grille-body"></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="formula-box card">
+    <div style="font-size:12px;font-weight:700;color:var(--r);margin-bottom:10px">Formule de calcul — fidèle à l'Excel Champeau</div>
+    <b>Cote</b> = (Score_SST + Score_PIB/h + Score_Arrêt + Score_Strat + Urgence) ÷ (390 + max_urgence)<br>
+    <b>Urgence</b> = ((1 − %prog) × Score_Jours) ÷ jours_restants × 0.5 — si date critique saisie<br>
+    <b>Score PIB/h</b> = normalisé dynamiquement (écart-type + moyenne des projets actifs)<br>
+    <b>Classe</b> : <b style="color:var(--r)">A</b> ≥ moy+σ | <b style="color:#7F4000">B</b> ≥ moy+0.5σ | <b style="color:#5F4000">C</b> ≥ moy | <b style="color:#1B5E20">D</b> ≥ moy−0.5σ | <b style="color:#0D47A1">E</b> &lt; moy−0.5σ<br>
+    <b>La classe est calculée automatiquement</b> — jamais saisie manuellement.
+  </div>
+</div>
+
+<!-- CALENDRIER -->
+<div id="view-cal" class="view">
+  <div class="cal-nav">
+    <div style="display:flex;gap:8px">
+      <button class="btn" onclick="calMove(-1)">◀</button>
+      <button class="btn" onclick="calToday()">Aujourd'hui</button>
+      <button class="btn" onclick="calMove(1)">▶</button>
+    </div>
+    <h3 id="cal-title"></h3>
+    <div class="legend" style="margin-bottom:0">
+      <div class="leg-item"><span style="width:11px;height:11px;border-radius:2px;background:#DBEAFE;display:inline-block"></span>Date visée</div>
+      <div class="leg-item"><span style="width:11px;height:11px;border-radius:2px;background:#FEE2E2;display:inline-block"></span>Date critique</div>
+    </div>
+  </div>
+  <div class="cal-grid-2" id="cal-months"></div>
+  <div class="tl-section">
+    <h3>Timeline par responsable — 6 mois</h3>
+    <div class="legend" style="margin-bottom:12px">
+      <div class="leg-item"><span class="dot" style="background:var(--vc);display:inline-block"></span>Date visée</div>
+      <div class="leg-item"><span class="dot" style="background:var(--cc);display:inline-block"></span>Date critique</div>
+      <div class="leg-item"><span class="dot dot-late" style="display:inline-block"></span>Dépassée</div>
+      <div class="leg-item"><span style="width:22px;height:7px;border-radius:2px;background:linear-gradient(90deg,#2E7D32,#66BB6A);display:inline-block;opacity:.75"></span>Progression</div>
+    </div>
+    <div class="tl-scroll" id="timeline"></div>
+  </div>
+</div>
+
+<!-- Tooltip -->
+<div class="tooltip" id="tooltip">
+  <div class="tt-nom" id="tt-nom"></div>
+  <div id="tt-txt"></div>
+  <div class="tt-hint">Cliquez sur ✎ ou le nom pour modifier</div>
+</div>
+
+<!-- Modal -->
+<div class="overlay" id="overlay">
+<div class="modal">
+  <div class="modal-hdr">
+    <h2 id="modal-title">Nouveau projet</h2>
+    <button class="modal-close" onclick="closeModal()">✕</button>
+  </div>
+  <div class="modal-body">
+    <div class="form-grid">
+      <div class="form-full form-group"><label>Nom du projet *</label><input id="f-nom" oninput="updatePreview()"></div>
+      <div class="form-group"><label>État</label>
+        <select id="f-etat2">
+          <option>Actif</option><option>Définition</option><option>Attente</option><option>Exploratoire</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Responsable</label><input id="f-resp2" list="resp-dl"><datalist id="resp-dl"></datalist></div>
+      <div class="form-group"><label>Impact $/an</label><input id="f-impact" type="number" placeholder="0" oninput="updatePreview()"></div>
+      <div class="form-group"><label>Réduction hr/an</label><input id="f-hrs" type="number" placeholder="0" oninput="updatePreview()"></div>
+      <div class="form-group"><label>No. BC</label><input id="f-bc"></div>
+      <div class="form-full form-group"><label>Commentaires / Notes</label><textarea id="f-notes" placeholder="Contexte, avancement, blocages, prochaines étapes..."></textarea></div>
+
+      <div class="section-title">Critères d'évaluation — niveau 0 à 5</div>
+
+      <div class="form-full criteria-row">
+        <label>SST — Sécurité (probabilité × gravité) [max 100pts]</label>
+        <div class="lvl-btns" id="btn-sst"></div>
+        <div class="lvl-desc" id="desc-sst"></div>
+      </div>
+      <div class="form-full criteria-row">
+        <label>Arrêt potentiel (fréquence × durée / an) [max 90pts]</label>
+        <div class="lvl-btns" id="btn-arret"></div>
+        <div class="lvl-desc" id="desc-arret"></div>
+      </div>
+      <div class="form-full criteria-row">
+        <label>Impact stratégique [max 100pts]</label>
+        <div class="lvl-btns" id="btn-strat"></div>
+        <div class="lvl-desc" id="desc-strat"></div>
+      </div>
+      <div class="form-full criteria-row">
+        <label>Nb jours réalisation (ing + fab + inst) — utilisé pour l'urgence uniquement [max 350pts]</label>
+        <div class="lvl-btns" id="btn-jours"></div>
+        <div class="lvl-desc" id="desc-jours"></div>
+      </div>
+
+      <div class="form-full">
+        <div class="urg-section">
+          <h4>📅 Planification et urgence</h4>
+          <div class="urg-grid">
+            <div><label>Date visée</label><input id="f-datev" type="date" oninput="updatePreview()"></div>
+            <div><label>Date critique</label><input id="f-datec" type="date" oninput="updatePreview()"></div>
+            <div><label>% progression actuelle</label><input id="f-prog" type="number" min="0" max="100" placeholder="0" oninput="updatePreview()"></div>
+          </div>
+          <div style="display:flex;gap:14px;margin-top:10px;font-size:11px;flex-wrap:wrap">
+            <span>Urgence calculée : <b style="color:#E65100" id="prev-urg">—</b></span>
+            <span>Date visée : <span id="prev-sv">—</span></span>
+            <span>Date critique : <span id="prev-sc">—</span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-full">
+        <div class="preview-box">
+          <div class="preview-item"><div class="pl">Cote de base</div><div class="pv" id="prev-base" style="font-size:16px;color:var(--text3)">—</div></div>
+          <div class="preview-sep"></div>
+          <div class="preview-item"><div class="pl">+ Urgence</div><div class="pv" id="prev-u" style="font-size:16px;color:#E65100">0</div></div>
+          <div class="preview-sep"></div>
+          <div class="preview-item"><div class="pl">Cote finale</div><div class="pv" id="prev-cote">—</div></div>
+          <div class="preview-sep"></div>
+          <div class="preview-item"><div class="pl">Classe automatique</div><span id="prev-classe" class="bdg bdg-" style="font-size:14px;padding:4px 14px">—</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn" onclick="closeModal()">Annuler</button>
+    <button class="btn primary" onclick="saveProjet()">💾 Enregistrer</button>
+  </div>
+</div>
+</div>
+
+<script>
+// ── PONDÉRATION EXACTE EXCEL CHAMPEAU ────────────────
+const P = {
+  sst:  { l:['Aucun impact','Accepté','Faible','Modéré','Important','Critique'],        s:[0,10,20,50,75,100] },
+  arret:{ l:['Aucun','100$–1k$','1k$–5k$','5k$–10k$','10k$–20k$','> 20k$'],           s:[0,10,40,60,80,90]  },
+  strat:{ l:['Aucun','Report mineur','Report majeur','Nouveau client','Part marché','Critique'], s:[0,30,40,50,80,100] },
+  jours:{ l:['Aucun','1 semaine','1 mois','3 mois','6 mois','< 12 mois'],              s:[0,7,30,90,120,350] },
+  pib:  { s:[0,30,50,70,80,100] },
+};
+const DENOM = 390;
+const URG_F = 0.5;
+const NB_COLORS = ['#F0F0F0','#EAE0E0','#D9C0C0','#C49090','#B06070','#B22222'];
+const NB_TEXT   = ['#808080','#4D4D4D','#1A1A1A','white','white','white'];
+const MOIS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+const MOIS3 = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+const DOW = ['Lu','Ma','Me','Je','Ve','Sa','Di'];
+
+let projets = [];
+let sortCol = 'cote', sortDir = -1;
+let calOff = 0;
+let SL = [];
+let editId = null;
+let SC = { sst:0, arret:0, strat:0, jours:0 };
+
+// ── CHARGEMENT ────────────────────────────────────────
+async function loadProjets() {
+  const r = await fetch('/api/projets');
+  projets = await r.json();
+  recalc();
+  updateGlobalKPIs();
+  updateRespFilter();
+  renderTable();
+}
+
+function recalc() {
+  // PIB normalisé
+  const actifs = projets.filter(p => p.etat === 'Actif');
+  const pibs = actifs.map(pibVal).filter(v => v > 0);
+  if (pibs.length >= 2) {
+    const avg = pibs.reduce((a,b)=>a+b) / pibs.length;
+    const std = Math.sqrt(pibs.map(v=>(v-avg)**2).reduce((a,b)=>a+b) / (pibs.length-1));
+    projets.forEach(p => {
+      const v = pibVal(p);
+      p._ps = std > 0 ? Math.max(0, Math.min(5, Math.round(2.5 + 2.5*(v-avg)/(2*std)))) : 2;
+    });
+  } else {
+    projets.forEach(p => p._ps = 2);
+  }
+  // Seuils dynamiques
+  const cotes = projets.map(coteBase).filter(c => c !== null);
+  if (cotes.length >= 2) {
+    const moy = cotes.reduce((a,b)=>a+b) / cotes.length;
+    const std = Math.sqrt(cotes.map(v=>(v-moy)**2).reduce((a,b)=>a+b) / (cotes.length-1));
+    SL = [{c:'A',m:moy+std},{c:'B',m:moy+0.5*std},{c:'C',m:moy},{c:'D',m:moy-0.5*std},{c:'E',m:0}];
+  } else {
+    SL = [{c:'A',m:.55},{c:'B',m:.46},{c:'C',m:.38},{c:'D',m:.31},{c:'E',m:0}];
+  }
+  updateSeuilsBar();
+}
+
+function pibVal(p) {
+  const v = (p.impact||0) + (p.hrs||0)*25;
+  return v > 0 ? v / 1820000 : 0;
+}
+
+function coteBase(p) {
+  if (p.sst===null||p.arret===null||p.strat===null||p.jours===null) return null;
+  return (P.sst.s[p.sst] + P.pib.s[p._ps??2] + P.arret.s[p.arret] + P.strat.s[p.strat]) / DENOM;
+}
+
+function calcUrg(p) {
+  if (!p.datec) return 0;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const dc = new Date(p.datec); dc.setHours(0,0,0,0);
+  const j = Math.ceil((dc - today) / 864e5);
+  if (j <= 0) return 0;
+  return Math.max(0, ((1-(p.prog||0)/100) * (P.jours.s[p.jours??0]||0)) / j * URG_F);
+}
+
+function coteTot(p) {
+  const b = coteBase(p); if (b === null) return null;
+  const urg = calcUrg(p);
+  const maxUrg = Math.max(...projets.map(calcUrg), 0);
+  const num = P.sst.s[p.sst??0] + P.pib.s[p._ps??2] + P.arret.s[p.arret??0] + P.strat.s[p.strat??0] + urg;
+  return Math.min(1, num / (DENOM + maxUrg));
+}
+
+function getClasse(c) {
+  if (c === null || !SL.length) return null;
+  for (const s of SL) if (c >= s.m) return s.c;
+  return 'E';
+}
+
+// ── DATE STATUS ───────────────────────────────────────
+function dateStatus(p, ds) {
+  if (!ds) return null;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const d = new Date(ds); d.setHours(0,0,0,0);
+  const pg = p.prog ?? 0;
+  if (pg >= 100) return 'done';
+  const j = Math.ceil((d - today) / 864e5);
+  if (j < 0) return pg >= 95 ? 'done' : 'late';
+  if ((j<14&&pg<80)||(j<30&&pg<50)||(j<60&&pg<20)) return 'warn';
+  return 'ok';
+}
+
+function fmtDate(d) {
+  if (!d) return '—';
+  const dt = new Date(d);
+  return `${dt.getDate().toString().padStart(2,'0')}/${(dt.getMonth()+1).toString().padStart(2,'0')}/${dt.getFullYear()}`;
+}
+
+function renderDateV(p) {
+  if (!p.datev) return '<span style="color:var(--text3)">—</span>';
+  const st = dateStatus(p, p.datev), txt = fmtDate(p.datev);
+  if (st==='done'||st==='ok') return `<span class="d-ok"><span class="dot dot-ok"></span>${txt}</span>`;
+  if (st==='late') return `<span class="d-late"><span class="dot dot-late"></span>${txt}</span>`;
+  return `<span class="d-warn"><span class="dot dot-warn"></span>${txt}</span>`;
+}
+
+function renderDateC(p) {
+  if (!p.datec) return '<span style="color:var(--text3)">—</span>';
+  const today = new Date(); today.setHours(0,0,0,0);
+  const dc = new Date(p.datec); dc.setHours(0,0,0,0);
+  const j = Math.ceil((dc-today)/864e5), pg = p.prog??0, txt = fmtDate(p.datec);
+  if (j<0&&pg<95) return `<span class="d-crit-late">⚠ ${txt}</span>`;
+  if ((j<=14&&pg<80)||(j<=30&&pg<50)) return `<span class="d-crit-warn">⚡ ${txt}</span>`;
+  return `<span class="d-crit-ok"><span class="dot" style="background:#1565C0;display:inline-block"></span>${txt}</span>`;
+}
+
+function renderBar(v) {
+  if (v===null||v===undefined) return '<span style="color:var(--text3);font-size:9px">—</span>';
+  return `<div class="bar-wrap"><div class="bar-fill" style="width:${Math.max(v/5*36,2)}px"></div><span class="bar-num">${v}</span></div>`;
+}
+
+// ── SEUILS ────────────────────────────────────────────
+function updateSeuilsBar() {
+  if (!SL.length) return;
+  const el = document.getElementById('seuils-bar');
+  el.innerHTML = '<span>Seuils dynamiques :</span>' +
+    SL.slice(0,4).map(s=>`<span class="bdg bdg-${s.c}" style="font-size:10px">${s.c} ≥ ${(s.m*100).toFixed(1)}%</span>`).join(' ') +
+    `<span class="bdg bdg-E" style="font-size:10px">E &lt; ${(SL[3].m*100).toFixed(1)}%</span>`;
+}
+
+function updateGlobalKPIs() {
+  const a = projets.filter(p=>p.etat==='Actif');
+  document.getElementById('k-actifs').textContent = a.length;
+  document.getElementById('k-total').textContent = projets.length;
+  const pibs = a.map(pibVal).filter(v=>v>0);
+  document.getElementById('k-pib').textContent = pibs.length ? (pibs.reduce((a,b)=>a+b)/pibs.length*100).toFixed(3)+'%' : '—';
+}
+
+function updateRespFilter() {
+  const sel = document.getElementById('f-resp'), cur = sel.value;
+  const rs = [...new Set(projets.map(p=>p.resp).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">Tous</option>' + rs.map(r=>`<option>${r}</option>`).join('');
+  sel.value = cur;
+  const dl = document.getElementById('resp-dl');
+  if (dl) dl.innerHTML = rs.map(r=>`<option value="${r}">`).join('');
+}
+
+// ── TABLEAU ───────────────────────────────────────────
+function sortBy(col) {
+  if (sortCol===col) sortDir*=-1; else { sortCol=col; sortDir=-1; }
+  document.querySelectorAll('thead th').forEach(th => {
+    th.classList.remove('sa','sd');
+    if (th.getAttribute('onclick')===`sortBy('${col}')`) th.classList.add(sortDir===1?'sa':'sd');
+  });
+  renderTable();
+}
+
+function renderTable() {
+  const ef = document.getElementById('f-etat').value;
+  const rf = document.getElementById('f-resp').value;
+  const sf = document.getElementById('f-search').value.toLowerCase();
+  recalc();
+  let list = projets.filter(p => {
+    if (ef && p.etat !== ef) return false;
+    if (rf && p.resp !== rf) return false;
+    if (sf && !p.nom.toLowerCase().includes(sf)) return false;
+    return true;
+  });
+  list.sort((a,b) => {
+    const map = {
+      nom:[a.nom,b.nom], etat:[a.etat,b.etat], resp:[a.resp||'',b.resp||''],
+      cote:[coteTot(a)??-1, coteTot(b)??-1], urg:[calcUrg(a),calcUrg(b)],
+      pib:[pibVal(a),pibVal(b)], sst:[a.sst??-1,b.sst??-1], arret:[a.arret??-1,b.arret??-1],
+      strat:[a.strat??-1,b.strat??-1], jours:[a.jours??-1,b.jours??-1],
+      prog:[a.prog??0,b.prog??0], datev:[a.datev||'',b.datev||''], datec:[a.datec||'',b.datec||'']
+    };
+    const [va,vb] = map[sortCol]||[0,0];
+    return va<vb?-sortDir:va>vb?sortDir:0;
+  });
+
+  const tbody = document.getElementById('tbody');
+  if (!list.length) {
+    tbody.innerHTML = `<tr><td colspan="16" style="text-align:center;padding:32px;color:var(--text3)">Aucun projet trouvé</td></tr>`;
+    document.getElementById('count-label').textContent = '0 projet';
+    return;
+  }
+
+  tbody.innerHTML = list.map(p => {
+    const ct = coteTot(p), cl = getClasse(ct), u = calcUrg(p);
+    const hasNote = p.notes && p.notes.trim();
+    return `<tr>
+      <td class="td-nom" onclick="openModal(${p.id})" onmouseenter="showTip(event,${p.id})" onmouseleave="hideTip()">${p.nom}</td>
+      <td class="td-c"><span class="note-ico ${hasNote?'has':'empty'}" onclick="openModal(${p.id})" title="${hasNote?'Modifier commentaires':'Ajouter un commentaire'}"></span></td>
+      <td class="td-c"><span class="bdg bdg-${p.etat||''}">${p.etat||'—'}</span></td>
+      <td class="td-c" style="font-size:10px">${p.resp||'—'}</td>
+      <td class="td-c">${ct!==null?`<span class="cote-badge">${(ct*100).toFixed(1)}%</span>`:'<span style="color:var(--text3);font-size:10px">À évaluer</span>'}</td>
+      <td class="td-c">${cl?`<span class="bdg bdg-${cl}">${cl}</span>`:'<span style="color:var(--text3);font-size:10px">—</span>'}</td>
+      <td class="td-c">${u>0?`<span class="urg-badge">+${(u*100).toFixed(1)}%</span>`:'<span style="font-size:9px;color:var(--text3)">—</span>'}</td>
+      <td class="td-c" style="font-size:10px">${p.prog!=null?p.prog+'%':'—'}</td>
+      <td class="td-c">${renderDateV(p)}</td>
+      <td class="td-c">${renderDateC(p)}</td>
+      <td class="td-c" style="font-size:10px">${pibVal(p)>0?(pibVal(p)*100).toFixed(3)+'%':'—'}</td>
+      <td class="td-c">${renderBar(p.sst)}</td>
+      <td class="td-c">${renderBar(p.arret)}</td>
+      <td class="td-c">${renderBar(p.strat)}</td>
+      <td class="td-c">${renderBar(p.jours)}</td>
+      <td class="td-c" style="white-space:nowrap">
+        <button class="btn" style="padding:2px 8px;font-size:10px" onclick="openModal(${p.id})">Éditer</button>
+        <button class="btn" style="padding:2px 8px;font-size:10px;color:var(--r)" onclick="deleteProjet(${p.id})">✕</button>
+      </td>
+    </tr>`;
+  }).join('');
+  document.getElementById('count-label').textContent = `${list.length} projet(s) sur ${projets.length}`;
+}
+
+// ── TOOLTIP ───────────────────────────────────────────
+let tipTimer = null;
+function showTip(e, id) {
+  clearTimeout(tipTimer);
+  const p = projets.find(x => x.id === id); if (!p) return;
+  const tip = document.getElementById('tooltip');
+  document.getElementById('tt-nom').textContent = p.nom;
+  const txt = document.getElementById('tt-txt');
+  if (p.notes && p.notes.trim()) { txt.className='tt-txt'; txt.textContent=p.notes; }
+  else { txt.className='tt-empty'; txt.textContent='Aucun commentaire — cliquez pour en ajouter.'; }
+  tip.style.display = 'block';
+  tip.style.left = Math.min(e.clientX+14, window.innerWidth-280)+'px';
+  tip.style.top  = Math.min(e.clientY-10, window.innerHeight-120)+'px';
+}
+function hideTip() { tipTimer = setTimeout(()=>{ document.getElementById('tooltip').style.display='none'; }, 180); }
+document.getElementById('tooltip').addEventListener('mouseenter', ()=>clearTimeout(tipTimer));
+document.getElementById('tooltip').addEventListener('mouseleave', hideTip);
+
+// ── DASHBOARD ─────────────────────────────────────────
+function renderDash() {
+  recalc();
+  const a = projets.filter(p=>p.etat==='Actif');
+  const cs = a.map(coteTot).filter(c=>c!==null);
+  const avg = cs.length ? cs.reduce((a,b)=>a+b)/cs.length : 0;
+  const retards = a.filter(p=>['late','warn'].includes(dateStatus(p,p.datev))||['late','warn'].includes(dateStatus(p,p.datec))).length;
+  const nA = a.filter(p=>getClasse(coteTot(p))==='A').length;
+  document.getElementById('dash-kpis').innerHTML = `
+    <div class="kpi-card"><div class="v">${a.length}</div><div class="l">Actifs</div></div>
+    <div class="kpi-card"><div class="v">${projets.filter(p=>p.etat==='Attente').length}</div><div class="l">En attente</div></div>
+    <div class="kpi-card"><div class="v">${nA}</div><div class="l">Classe A</div></div>
+    <div class="kpi-card${retards>0?' warn':''}"><div class="v">${retards}</div><div class="l">À risque / retard</div></div>`;
+  const dist = {A:0,B:0,C:0,D:0,E:0};
+  projets.filter(p=>coteBase(p)!==null).forEach(p=>{const c=getClasse(coteTot(p));if(c&&dist[c]!==undefined)dist[c]++;});
+  const mx = Math.max(...Object.values(dist),1);
+  const cr = {A:'#8B1A1A',B:'#B22222',C:'#CC2200',D:'#888',E:'#BDBDBD'};
+  document.getElementById('dist-bars').innerHTML = Object.entries(dist).map(([c,n])=>`
+    <div class="dist-col">
+      <div class="num">${n}</div>
+      <div class="bar" style="height:${Math.max(n/mx*70,4)}px;background:${cr[c]}"></div>
+      <div class="lbl"><span class="bdg bdg-${c}">${c}</span></div>
+    </div>`).join('');
+  const rk = a.filter(p=>pibVal(p)>0).sort((a,b)=>pibVal(b)-pibVal(a)).slice(0,7);
+  const mx2 = rk.length ? pibVal(rk[0]) : 1;
+  document.getElementById('top-pib').innerHTML = rk.map(p=>`
+    <div class="pib-row">
+      <div class="pn" title="${p.nom}">${p.nom}</div>
+      <div class="pw"><div class="pf" style="width:${pibVal(p)/mx2*100}%"></div></div>
+      <div class="pp">${(pibVal(p)*100).toFixed(3)}%</div>
+    </div>`).join('') || '<div style="font-size:11px;color:var(--text3);padding:8px 0">Aucun PIB/h saisi</div>';
+}
+
+// ── GRILLE ────────────────────────────────────────────
+function renderGrille() {
+  const pib_descs = ['Négatif','Très faible','Faible','Modéré','Important','Critique'];
+  document.getElementById('grille-body').innerHTML = [0,1,2,3,4,5].map(n=>`
+    <tr style="background:${NB_COLORS[n]};color:${NB_TEXT[n]}">
+      <td style="font-weight:700">${n}</td>
+      <td style="text-align:left">${P.sst.l[n]}</td><td>${P.sst.s[n]}</td>
+      <td style="text-align:left">${pib_descs[n]}</td><td>${P.pib.s[n]}</td>
+      <td style="text-align:left">${P.arret.l[n]}</td><td>${P.arret.s[n]}</td>
+      <td style="text-align:left">${P.strat.l[n]}</td><td>${P.strat.s[n]}</td>
+      <td style="text-align:left">${P.jours.l[n]}</td><td>${P.jours.s[n]}</td>
+    </tr>`).join('');
+}
+
+// ── CALENDRIER ────────────────────────────────────────
+function calMove(d) { calOff += d; renderCal(); }
+function calToday() { calOff = 0; renderCal(); }
+
+function renderCal() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const base = new Date(today.getFullYear(), today.getMonth()+calOff, 1);
+  const m2 = (base.getMonth()+1)%12, y2 = base.getMonth()===11 ? base.getFullYear()+1 : base.getFullYear();
+  document.getElementById('cal-title').textContent = `${MOIS[base.getMonth()]} ${base.getFullYear()} — ${MOIS[m2]} ${y2}`;
+
+  const evts = {};
+  projets.filter(p=>p.etat==='Actif'||p.etat==='Attente').forEach(p => {
+    if (p.datev) { if(!evts[p.datev])evts[p.datev]=[]; evts[p.datev].push({nom:p.nom,type:'visee'}); }
+    if (p.datec) {
+      if(!evts[p.datec])evts[p.datec]=[];
+      const dc=new Date(p.datec);dc.setHours(0,0,0,0);
+      const j=Math.ceil((dc-today)/864e5);
+      const w=j<0?'late':((j<=14&&(p.prog||0)<80)||(j<=30&&(p.prog||0)<50))?'warn':'ok';
+      evts[p.datec].push({nom:p.nom,type:'critique',warn:w});
+    }
+  });
+
+  const wrap = document.getElementById('cal-months'); wrap.innerHTML = '';
+  for (let mi=0; mi<2; mi++) {
+    const m = new Date(base.getFullYear(), base.getMonth()+mi, 1);
+    const y=m.getFullYear(), mo=m.getMonth();
+    const fd=(m.getDay()+6)%7, dim=new Date(y,mo+1,0).getDate();
+    let h = `<div class="cal-month"><h4>${MOIS[mo]} ${y}</h4><div class="cal-days">`;
+    DOW.forEach(d=>h+=`<div class="cal-dow">${d}</div>`);
+    for(let i=0;i<fd;i++) h+=`<div class="cal-day other"><div class="dn">${new Date(y,mo,-(fd-1-i)).getDate()}</div></div>`;
+    for(let d=1;d<=dim;d++) {
+      const dt=new Date(y,mo,d), isT=dt.getTime()===today.getTime();
+      const k=`${y}-${String(mo+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const de=evts[k]||[];
+      h+=`<div class="cal-day${isT?' today':''}"><div class="dn">${d}</div>`;
+      de.slice(0,3).forEach(ev=>{
+        const sh=ev.nom.length>13?ev.nom.substring(0,12)+'…':ev.nom;
+        if(ev.type==='visee') h+=`<div class="cal-evt ev-visee" title="${ev.nom}">${sh}</div>`;
+        else {
+          const cls=ev.warn==='late'?'ev-crit-late':ev.warn==='warn'?'ev-crit-warn':'ev-crit';
+          h+=`<div class="cal-evt ${cls}" title="${ev.nom}">${sh}</div>`;
+        }
+      });
+      if(de.length>3) h+=`<div style="font-size:8px;color:var(--text3)">+${de.length-3}</div>`;
+      h+='</div>';
+    }
+    const ld=(new Date(y,mo,dim).getDay()+6)%7;
+    for(let i=1;i<7-ld;i++) h+=`<div class="cal-day other"><div class="dn">${i}</div></div>`;
+    h+='</div></div>'; wrap.innerHTML+=h;
+  }
+  renderTimeline(today, base);
+}
+
+function renderTimeline(today, base) {
+  const end=new Date(base.getFullYear(),base.getMonth()+6,0);
+  const totalDays=Math.ceil((end-base)/864e5)+1, TW=500, dpx=TW/totalDays;
+  const byR={};
+  projets.filter(p=>(p.etat==='Actif'||p.etat==='Attente')&&(p.datev||p.datec)).forEach(p=>{
+    const r=p.resp||'(Sans responsable)'; if(!byR[r])byR[r]=[]; byR[r].push(p);
+  });
+  let hdr=`<div class="tl-header"><div class="tl-lbl"></div><div class="tl-months" style="width:${TW}px">`;
+  for(let mi=0;mi<6;mi++){
+    const m=new Date(base.getFullYear(),base.getMonth()+mi,1);
+    const me=new Date(base.getFullYear(),base.getMonth()+mi+1,0);
+    const md=Math.ceil((Math.min(me,end)-m)/864e5)+1;
+    hdr+=`<div class="tl-month" style="width:${md*dpx}px">${MOIS3[m.getMonth()]}</div>`;
+  }
+  hdr+='</div></div>';
+  const todayPx=Math.ceil((today-base)/864e5)*dpx;
+  let rows='';
+  Object.keys(byR).sort().forEach(resp=>{
+    rows+=`<div class="tl-group-hdr"><div class="tl-group-lbl">${resp}</div><div class="tl-group-line"></div></div>`;
+    byR[resp].forEach(p=>{
+      rows+=`<div class="tl-row">
+        <div class="tl-name" onclick="openModal(${p.id})" title="${p.nom}">${p.nom}</div>
+        <div class="tl-track" style="width:${TW}px">
+          <div class="tl-today" style="left:${todayPx}px"></div>`;
+      if(p.datev&&(p.prog||0)>0){
+        const dv=new Date(p.datev);dv.setHours(0,0,0,0);
+        const off=Math.ceil((dv-base)/864e5);
+        if(off>0&&off<=totalDays){
+          const pg=(p.prog||0)/100,be=off*dpx,bs=be*(1-pg),bw=be*pg;
+          if(bw>0)rows+=`<div class="tl-bar" style="left:${Math.max(0,bs)}px;width:${Math.min(bw,TW-bs)}px"></div>`;
+        }
+      }
+      if(p.datev){
+        const dv=new Date(p.datev);dv.setHours(0,0,0,0);
+        const off=Math.ceil((dv-base)/864e5);
+        if(off>=0&&off<=totalDays){
+          const st=dateStatus(p,p.datev),cls=st==='late'?'late':'dv';
+          rows+=`<div class="tl-dot ${cls}" style="left:${off*dpx}px" title="${p.nom} — Date visée: ${fmtDate(p.datev)}"></div>`;
+        }
+      }
+      if(p.datec){
+        const dc=new Date(p.datec);dc.setHours(0,0,0,0);
+        const off=Math.ceil((dc-base)/864e5);
+        if(off>=0&&off<=totalDays){
+          const t2=new Date();t2.setHours(0,0,0,0);
+          const cls=Math.ceil((dc-t2)/864e5)<0?'late':'dc';
+          rows+=`<div class="tl-dot ${cls}" style="left:${off*dpx}px" title="${p.nom} — Date critique: ${fmtDate(p.datec)}"></div>`;
+        }
+      }
+      rows+='</div></div>';
+    });
+  });
+  if(!rows) rows=`<div style="text-align:center;padding:24px;color:var(--text3);font-size:11px">Aucun projet avec dates dans cette période</div>`;
+  document.getElementById('timeline').innerHTML=hdr+rows;
+}
+
+// ── MODAL ─────────────────────────────────────────────
+function buildLvlBtns(cid, did, key, cur) {
+  document.getElementById(cid).innerHTML = [0,1,2,3,4,5].map(n=>
+    `<button class="lvl-btn${SC[key]===n?' sel':''}" onclick="pickLvl('${cid}','${did}','${key}',${n})">${n}</button>`
+  ).join('');
+  document.getElementById(did).textContent = cur!==null ? (P[key].l[cur]||'') : 'Non évalué';
+}
+
+function pickLvl(cid, did, key, n) {
+  SC[key] = n;
+  document.querySelectorAll(`#${cid} .lvl-btn`).forEach((b,i)=>b.classList.toggle('sel',i===n));
+  document.getElementById(did).textContent = P[key].l[n]||'';
+  updatePreview();
+}
+
+function updatePreview() {
+  const imp = parseFloat(document.getElementById('f-impact').value)||0;
+  const hrs = parseFloat(document.getElementById('f-hrs').value)||0;
+  const v = (imp+hrs*25)>0 ? (imp+hrs*25)/1820000 : 0;
+  const actifs = projets.filter(p=>p.etat==='Actif'&&pibVal(p)>0);
+  const vals = [...actifs.map(pibVal), v].filter(x=>x>0);
+  let ps = 2;
+  if (vals.length>=2) {
+    const avg=vals.reduce((a,b)=>a+b)/vals.length;
+    const std=Math.sqrt(vals.map(x=>(x-avg)**2).reduce((a,b)=>a+b)/(vals.length-1));
+    ps = std>0 ? Math.max(0,Math.min(5,Math.round(2.5+2.5*(v-avg)/(2*std)))) : 2;
+  }
+  const base = (P.sst.s[SC.sst]+P.pib.s[ps]+P.arret.s[SC.arret]+P.strat.s[SC.strat]) / DENOM;
+  const prog = parseFloat(document.getElementById('f-prog').value)||0;
+  const datec = document.getElementById('f-datec').value;
+  const datev = document.getElementById('f-datev').value;
+  let urg = 0;
+  if (datec) {
+    const today=new Date();today.setHours(0,0,0,0);
+    const dc=new Date(datec);dc.setHours(0,0,0,0);
+    const j=Math.ceil((dc-today)/864e5);
+    if(j>0) urg=Math.max(0,((1-prog/100)*(P.jours.s[SC.jours]||0))/j*URG_F);
+  }
+  const maxUrg=Math.max(...projets.map(calcUrg),urg,0);
+  const total=Math.min(1,(P.sst.s[SC.sst]+P.pib.s[ps]+P.arret.s[SC.arret]+P.strat.s[SC.strat]+urg)/(DENOM+maxUrg));
+  const cl=getClasse(total);
+  document.getElementById('prev-base').textContent = (base*100).toFixed(1)+'%';
+  document.getElementById('prev-u').textContent = urg>0 ? '+'+(urg/(DENOM+maxUrg)*100).toFixed(2)+'%' : '0';
+  document.getElementById('prev-cote').textContent = (total*100).toFixed(1)+'%';
+  const pc=document.getElementById('prev-classe');
+  pc.textContent=cl||'—'; pc.className=`bdg bdg-${cl||''}`;
+  pc.style.cssText='font-size:14px;padding:4px 14px';
+  // Statuts dates
+  const fp={prog,datev,datec};
+  const sv=dateStatus(fp,datev),sc=dateStatus(fp,datec);
+  const statLabel=(st)=>!st?'—':st==='done'?'✓ Terminé':st==='late'?'⚠ En retard':st==='warn'?'⚡ À risque':'✓ En voie';
+  document.getElementById('prev-sv').textContent=statLabel(sv);
+  document.getElementById('prev-sc').textContent=statLabel(sc);
+  document.getElementById('prev-urg').textContent=urg>0?(urg/(DENOM+maxUrg)*100).toFixed(2)+'%':'—';
+}
+
+function openModal(id=null) {
+  editId = id;
+  const p = id ? projets.find(x=>x.id===id) : null;
+  document.getElementById('modal-title').textContent = p ? 'Modifier le projet' : 'Nouveau projet';
+  document.getElementById('f-nom').value = p?.nom||'';
+  document.getElementById('f-etat2').value = p?.etat||'Actif';
+  document.getElementById('f-resp2').value = p?.resp||'';
+  document.getElementById('f-impact').value = p?.impact||'';
+  document.getElementById('f-hrs').value = p?.hrs||'';
+  document.getElementById('f-notes').value = p?.notes||'';
+  document.getElementById('f-datev').value = p?.datev||'';
+  document.getElementById('f-datec').value = p?.datec||'';
+  document.getElementById('f-prog').value = p?.prog!=null?p.prog:'';
+  document.getElementById('f-bc').value = p?.bc||'';
+  SC = { sst:p?.sst??0, arret:p?.arret??0, strat:p?.strat??0, jours:p?.jours??0 };
+  buildLvlBtns('btn-sst','desc-sst','sst',SC.sst);
+  buildLvlBtns('btn-arret','desc-arret','arret',SC.arret);
+  buildLvlBtns('btn-strat','desc-strat','strat',SC.strat);
+  buildLvlBtns('btn-jours','desc-jours','jours',SC.jours);
+  updatePreview();
+  document.getElementById('overlay').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('overlay').classList.remove('open');
+  editId = null;
+}
+
+document.getElementById('overlay').addEventListener('click', e => {
+  if (e.target===document.getElementById('overlay')) closeModal();
+});
+
+async function saveProjet() {
+  const nom = document.getElementById('f-nom').value.trim();
+  if (!nom) { alert('Le nom du projet est requis.'); return; }
+  const data = {
+    nom, etat:document.getElementById('f-etat2').value,
+    resp:document.getElementById('f-resp2').value.trim(),
+    impact:parseFloat(document.getElementById('f-impact').value)||0,
+    hrs:parseFloat(document.getElementById('f-hrs').value)||0,
+    sst:SC.sst, arret:SC.arret, strat:SC.strat, jours:SC.jours,
+    prog:parseFloat(document.getElementById('f-prog').value)||0,
+    datev:document.getElementById('f-datev').value,
+    datec:document.getElementById('f-datec').value,
+    notes:document.getElementById('f-notes').value,
+    bc:document.getElementById('f-bc').value,
+  };
+  if (editId) {
+    await fetch(`/api/projets/${editId}`, {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+  } else {
+    await fetch('/api/projets', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+  }
+  closeModal();
+  await loadProjets();
+}
+
+async function deleteProjet(id) {
+  if (!confirm('Supprimer ce projet définitivement ?')) return;
+  await fetch(`/api/projets/${id}`, {method:'DELETE'});
+  await loadProjets();
+}
+
+// ── TABS ─────────────────────────────────────────────
+function switchTab(t) {
+  document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',['liste','dash','grille','cal'][i]===t));
+  document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
+  document.getElementById('view-'+t).classList.add('active');
+  if(t==='dash') renderDash();
+  if(t==='grille') renderGrille();
+  if(t==='cal') renderCal();
+}
+
+// ── RAPPORT PDF ───────────────────────────────────────
+function genPDF() {
+  window.print();
+}
+
+// ── INIT ─────────────────────────────────────────────
+loadProjets();
+</script>
+</body>
+</html>
