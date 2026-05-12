@@ -3,11 +3,14 @@
   "version": "1.0.0",
   "description": "Matrice de priorisation - Champeau Inc.",
   "main": "server.js",
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "better-sqlite3": "^9.4.3"
+    "sqlite3": "^5.1.7"
   }
 }
