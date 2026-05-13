@@ -18,6 +18,14 @@ db.serialize(() => {
     created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now'))
   )`);
 
+  db.run(`CREATE TABLE IF NOT EXISTS intervenants (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nom TEXT NOT NULL UNIQUE,
+    role TEXT DEFAULT '',
+    actif INTEGER DEFAULT 1,
+    created_at TEXT DEFAULT (datetime('now'))
+  )`);
+
   db.get('SELECT COUNT(*) as n FROM projets', (err, row) => {
     if (row && row.n === 0) {
       const stmt = db.prepare(`INSERT INTO projets (nom,etat,resp,impact,hrs,sst,arret,strat,jours,prog,datev,datec,notes,bc) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
@@ -45,22 +53,39 @@ db.serialize(() => {
         ['Serre Doucet','Attente','Médéric.G',0,0,3,0,0,3,0,'','','Lemieux non-conforme — analyse en cours','1244'],
       ].forEach(d => stmt.run(...d));
       stmt.finalize();
-      console.log('✅ Données initiales insérées');
     }
   });
+
+  db.get('SELECT COUNT(*) as n FROM intervenants', (err, row) => {
+    if (row && row.n === 0) {
+      const stmt = db.prepare(`INSERT INTO intervenants (nom, role) VALUES (?, ?)`);
+      [
+        ['Charles.G',    'Ingénieur senior'],
+        ['Guillaume.G',  'Ingénieur'],
+        ['Vincent.T',    'Ingénieur'],
+        ['Médéric.G',    'Ingénieur'],
+        ['Mathis.T',     'Technicien'],
+        ['Igor.N',       'Technicien'],
+        ['Louis_David',  'Technicien'],
+        ['Stéphane.V',   'Technicien'],
+        ['Jacob',        'Technicien'],
+      ].forEach(d => stmt.run(...d));
+      stmt.finalize();
+      console.log('✅ Intervenants initiaux insérés');
+    }
+  });
+
+  console.log('✅ Champeau DB initialisée');
 });
 
 app.use(express.json());
 
-// Servir index.html depuis la racine ET depuis public/
+const fs = require('fs');
+const publicPath = path.join(__dirname, 'public', 'index.html');
+const rootPath   = path.join(__dirname, 'index.html');
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(path.join(__dirname)));
-
-// Route fallback — envoie index.html peu importe où il se trouve
 app.get('/', (req, res) => {
-  const fs = require('fs');
-  const publicPath = path.join(__dirname, 'public', 'index.html');
-  const rootPath = path.join(__dirname, 'index.html');
   if (fs.existsSync(publicPath)) res.sendFile(publicPath);
   else if (fs.existsSync(rootPath)) res.sendFile(rootPath);
   else res.status(404).send('index.html introuvable');
@@ -69,11 +94,11 @@ app.get('/', (req, res) => {
 const dbAll = (sql, p=[]) => new Promise((res,rej) => db.all(sql,p,(e,r)=>e?rej(e):res(r)));
 const dbRun = (sql, p=[]) => new Promise((res,rej) => db.run(sql,p,function(e){e?rej(e):res(this)}));
 
+// ── PROJETS ──────────────────────────────────────────
 app.get('/api/projets', async (req,res) => {
   try { res.json(await dbAll('SELECT * FROM projets ORDER BY id')); }
   catch(e) { res.status(500).json({error:e.message}); }
 });
-
 app.post('/api/projets', async (req,res) => {
   const p=req.body;
   try {
@@ -82,7 +107,6 @@ app.post('/api/projets', async (req,res) => {
     res.json((await dbAll('SELECT * FROM projets WHERE id=?',[r.lastID]))[0]);
   } catch(e) { res.status(500).json({error:e.message}); }
 });
-
 app.put('/api/projets/:id', async (req,res) => {
   const p=req.body;
   try {
@@ -91,9 +115,32 @@ app.put('/api/projets/:id', async (req,res) => {
     res.json((await dbAll('SELECT * FROM projets WHERE id=?',[req.params.id]))[0]);
   } catch(e) { res.status(500).json({error:e.message}); }
 });
-
 app.delete('/api/projets/:id', async (req,res) => {
   try { await dbRun('DELETE FROM projets WHERE id=?',[req.params.id]); res.json({ok:true}); }
+  catch(e) { res.status(500).json({error:e.message}); }
+});
+
+// ── INTERVENANTS ─────────────────────────────────────
+app.get('/api/intervenants', async (req,res) => {
+  try { res.json(await dbAll('SELECT * FROM intervenants ORDER BY nom')); }
+  catch(e) { res.status(500).json({error:e.message}); }
+});
+app.post('/api/intervenants', async (req,res) => {
+  const {nom,role} = req.body;
+  try {
+    const r = await dbRun('INSERT INTO intervenants (nom,role) VALUES (?,?)', [nom,role||'']);
+    res.json((await dbAll('SELECT * FROM intervenants WHERE id=?',[r.lastID]))[0]);
+  } catch(e) { res.status(500).json({error:e.message}); }
+});
+app.put('/api/intervenants/:id', async (req,res) => {
+  const {nom,role,actif} = req.body;
+  try {
+    await dbRun('UPDATE intervenants SET nom=?,role=?,actif=? WHERE id=?',[nom,role||'',actif??1,req.params.id]);
+    res.json((await dbAll('SELECT * FROM intervenants WHERE id=?',[req.params.id]))[0]);
+  } catch(e) { res.status(500).json({error:e.message}); }
+});
+app.delete('/api/intervenants/:id', async (req,res) => {
+  try { await dbRun('DELETE FROM intervenants WHERE id=?',[req.params.id]); res.json({ok:true}); }
   catch(e) { res.status(500).json({error:e.message}); }
 });
 

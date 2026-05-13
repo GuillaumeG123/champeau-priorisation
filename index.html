@@ -240,6 +240,7 @@ tbody tr:nth-child(even):hover td{background:#FEF2F2}
   <div class="tab" onclick="switchTab('dash')">📊 Tableau de bord</div>
   <div class="tab" onclick="switchTab('grille')">⚖️ Grille d'évaluation</div>
   <div class="tab" onclick="switchTab('cal')">📅 Calendrier</div>
+  <div class="tab" onclick="switchTab('intervenants')">👥 Intervenants</div>
 </div>
 
 <div class="toolbar">
@@ -373,7 +374,70 @@ tbody tr:nth-child(even):hover td{background:#FEF2F2}
   </div>
 </div>
 
+<!-- INTERVENANTS -->
+<div id="view-intervenants" class="view">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+    <div>
+      <div style="font-size:15px;font-weight:700;color:var(--r)">Gestion des intervenants</div>
+      <div style="font-size:11px;color:var(--text2);margin-top:2px">Ajoutez ou retirez des responsables disponibles dans les projets</div>
+    </div>
+    <button class="btn primary" onclick="openModalIntervenant()">+ Ajouter un intervenant</button>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="left" style="min-width:180px">Nom</th>
+          <th class="left" style="min-width:160px">Rôle / Titre</th>
+          <th>Projets assignés</th>
+          <th>Statut</th>
+          <th style="width:120px"></th>
+        </tr>
+      </thead>
+      <tbody id="tbody-intervenants"></tbody>
+    </table>
+    <div style="padding:8px 14px;font-size:10px;color:var(--text3);background:var(--bg);border-top:1px solid var(--border)">
+      <span id="count-intervenants"></span>
+    </div>
+  </div>
+</div>
+
+<!-- Modal intervenant -->
+<div class="overlay" id="overlay-intervenant">
+<div class="modal" style="max-width:420px">
+  <div class="modal-hdr">
+    <h2 id="modal-interv-title">Nouvel intervenant</h2>
+    <button class="modal-close" onclick="closeModalIntervenant()">✕</button>
+  </div>
+  <div class="modal-body">
+    <div class="form-grid">
+      <div class="form-full form-group">
+        <label>Nom *</label>
+        <input id="fi-nom" placeholder="ex: Jean.T">
+      </div>
+      <div class="form-full form-group">
+        <label>Rôle / Titre</label>
+        <input id="fi-role" placeholder="ex: Ingénieur, Technicien...">
+      </div>
+      <div class="form-full form-group">
+        <label>Statut</label>
+        <select id="fi-actif">
+          <option value="1">Actif</option>
+          <option value="0">Inactif</option>
+        </select>
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn" onclick="closeModalIntervenant()">Annuler</button>
+    <button class="btn primary" onclick="saveIntervenant()">💾 Enregistrer</button>
+  </div>
+</div>
+</div>
+
 <!-- Tooltip -->
+
 <div class="tooltip" id="tooltip">
   <div class="tt-nom" id="tt-nom"></div>
   <div id="tt-txt"></div>
@@ -613,10 +677,14 @@ function updateGlobalKPIs() {
 }
 
 function updateRespFilter() {
+  // Filtre responsable — basé sur les intervenants actifs + ceux déjà dans les projets
   const sel = document.getElementById('f-resp'), cur = sel.value;
-  const rs = [...new Set(projets.map(p=>p.resp).filter(Boolean))].sort();
+  const fromInterv = intervenants.filter(i=>i.actif===1||i.actif==='1').map(i=>i.nom);
+  const fromProjets = projets.map(p=>p.resp).filter(Boolean);
+  const rs = [...new Set([...fromInterv, ...fromProjets])].sort();
   sel.innerHTML = '<option value="">Tous</option>' + rs.map(r=>`<option>${r}</option>`).join('');
   sel.value = cur;
+  // Datalist du formulaire modal
   const dl = document.getElementById('resp-dl');
   if (dl) dl.innerHTML = rs.map(r=>`<option value="${r}">`).join('');
 }
@@ -983,12 +1051,13 @@ async function deleteProjet(id) {
 
 // ── TABS ─────────────────────────────────────────────
 function switchTab(t) {
-  document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',['liste','dash','grille','cal'][i]===t));
+  document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',['liste','dash','grille','cal','intervenants'][i]===t));
   document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
   document.getElementById('view-'+t).classList.add('active');
   if(t==='dash') renderDash();
   if(t==='grille') renderGrille();
   if(t==='cal') renderCal();
+  if(t==='intervenants') renderIntervenants();
 }
 
 // ── RAPPORT PDF ───────────────────────────────────────
@@ -996,8 +1065,97 @@ function genPDF() {
   window.print();
 }
 
+// ── INTERVENANTS ─────────────────────────────────────
+let intervenants = [];
+let editIdInterv = null;
+
+async function loadIntervenants() {
+  const r = await fetch('/api/intervenants');
+  intervenants = await r.json();
+  renderIntervenants();
+  updateRespFilter();
+}
+
+function renderIntervenants() {
+  const tbody = document.getElementById('tbody-intervenants');
+  if (!intervenants.length) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text3)">Aucun intervenant</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = intervenants.map(i => {
+    const nbProjets = projets.filter(p => p.resp === i.nom).length;
+    const actif = i.actif === 1 || i.actif === '1';
+    return `<tr>
+      <td style="font-weight:600;font-size:12px;padding:8px 10px;border-bottom:1px solid var(--bg2)">${i.nom}</td>
+      <td style="font-size:11px;color:var(--text2);padding:8px 10px;border-bottom:1px solid var(--bg2)">${i.role||'—'}</td>
+      <td style="text-align:center;padding:8px 10px;border-bottom:1px solid var(--bg2)">
+        ${nbProjets > 0
+          ? `<span style="background:var(--r);color:var(--or);border-radius:10px;padding:2px 10px;font-size:10px;font-weight:600">${nbProjets} projet${nbProjets>1?'s':''}</span>`
+          : `<span style="color:var(--text3);font-size:10px">—</span>`}
+      </td>
+      <td style="text-align:center;padding:8px 10px;border-bottom:1px solid var(--bg2)">
+        <span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:10px;font-weight:600;${actif?'background:#E8F5E9;color:#1B5E20':'background:#F5F5F5;color:#808080'}">
+          ${actif ? 'Actif' : 'Inactif'}
+        </span>
+      </td>
+      <td style="text-align:center;padding:8px 10px;border-bottom:1px solid var(--bg2);white-space:nowrap">
+        <button class="btn" style="padding:2px 8px;font-size:10px" onclick="openModalIntervenant(${i.id})">Éditer</button>
+        ${nbProjets === 0
+          ? `<button class="btn" style="padding:2px 8px;font-size:10px;color:var(--r)" onclick="deleteIntervenant(${i.id})">✕</button>`
+          : `<button class="btn" style="padding:2px 8px;font-size:10px;color:var(--text3);cursor:not-allowed" title="Impossible — ${nbProjets} projet(s) assigné(s)" disabled>✕</button>`}
+      </td>
+    </tr>`;
+  }).join('');
+  document.getElementById('count-intervenants').textContent = `${intervenants.filter(i=>i.actif===1||i.actif==='1').length} actif(s) sur ${intervenants.length} intervenant(s)`;
+}
+
+function openModalIntervenant(id=null) {
+  editIdInterv = id;
+  const i = id ? intervenants.find(x=>x.id===id) : null;
+  document.getElementById('modal-interv-title').textContent = i ? 'Modifier l\'intervenant' : 'Nouvel intervenant';
+  document.getElementById('fi-nom').value = i?.nom||'';
+  document.getElementById('fi-role').value = i?.role||'';
+  document.getElementById('fi-actif').value = i?.actif??1;
+  document.getElementById('overlay-intervenant').classList.add('open');
+}
+
+function closeModalIntervenant() {
+  document.getElementById('overlay-intervenant').classList.remove('open');
+  editIdInterv = null;
+}
+
+async function saveIntervenant() {
+  const nom = document.getElementById('fi-nom').value.trim();
+  if (!nom) { alert('Le nom est requis.'); return; }
+  const data = {
+    nom,
+    role: document.getElementById('fi-role').value.trim(),
+    actif: parseInt(document.getElementById('fi-actif').value),
+  };
+  try {
+    if (editIdInterv) {
+      await fetch(`/api/intervenants/${editIdInterv}`, {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+    } else {
+      await fetch('/api/intervenants', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+    }
+    closeModalIntervenant();
+    await loadIntervenants();
+  } catch(e) { alert('Erreur: '+e.message); }
+}
+
+async function deleteIntervenant(id) {
+  if (!confirm('Supprimer cet intervenant ?')) return;
+  await fetch(`/api/intervenants/${id}`, {method:'DELETE'});
+  await loadIntervenants();
+}
+
+document.getElementById('overlay-intervenant').addEventListener('click', e => {
+  if (e.target===document.getElementById('overlay-intervenant')) closeModalIntervenant();
+});
+
 // ── INIT ─────────────────────────────────────────────
 loadProjets();
+loadIntervenants();
 </script>
 </body>
 </html>
