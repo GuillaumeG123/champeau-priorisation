@@ -634,7 +634,8 @@ function recalc() {
 }
 
 function pibVal(p) {
-  const v = (p.impact||0) + (p.hrs||0)*25;
+  // parseFloat nécessaire — PostgreSQL retourne les NUMERIC comme strings
+  const v = parseFloat(p.impact||0) + parseFloat(p.hrs||0)*25;
   return v > 0 ? v / 1820000 : 0;
 }
 
@@ -722,7 +723,7 @@ function updateGlobalKPIs() {
   document.getElementById('k-actifs').textContent = a.length;
   document.getElementById('k-total').textContent = projets.length;
   const pibs = a.map(pibVal).filter(v=>v>0);
-  document.getElementById('k-pib').textContent = pibs.length ? Math.round(pibs.reduce((a,b)=>a+b)/pibs.length*100)+'%' : '—';
+  document.getElementById('k-pib').textContent = pibs.length ? (pibs.reduce((a,b)=>a+b)/pibs.length*100).toFixed(2)+'%' : '—';
 }
 
 function updateRespFilter() {
@@ -796,7 +797,7 @@ function renderTable() {
       <td class="td-c" style="font-size:10px">${p.prog!=null?p.prog+'%':'—'}</td>
       <td class="td-c">${renderDateV(p)}</td>
       <td class="td-c">${renderDateC(p)}</td>
-      <td class="td-c" style="font-size:10px">${pibVal(p)>0?Math.round(pibVal(p)*100)+'%':'—'}</td>
+      <td class="td-c" style="font-size:10px">${pibVal(p)>0?(pibVal(p)*100).toFixed(2)+'%':'—'}</td>
       <td class="td-c">${renderBar(p.sst)}</td>
       <td class="td-c">${renderBar(p.arret)}</td>
       <td class="td-c">${renderBar(p.strat)}</td>
@@ -857,7 +858,7 @@ function renderDash() {
     <div class="pib-row">
       <div class="pn" title="${p.nom}">${p.nom}</div>
       <div class="pw"><div class="pf" style="width:${pibVal(p)/mx2*100}%"></div></div>
-      <div class="pp">${Math.round(pibVal(p)*100)}%</div>
+      <div class="pp">${(pibVal(p)*100).toFixed(2)}%</div>
     </div>`).join('') || '<div style="font-size:11px;color:var(--text3);padding:8px 0">Aucun PIB/h saisi</div>';
 }
 
