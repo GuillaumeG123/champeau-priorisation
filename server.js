@@ -113,6 +113,10 @@ app.put('/api/projets/:id', async (req,res) => {
     // Verrouillage optimiste
     if (p._opened_at) {
       const current = (await dbAll('SELECT updated_at FROM projets WHERE id=?',[req.params.id]))[0];
+      // updated_at peut etre NULL sur les anciens projets — on initialise dans ce cas
+      if (current && !current.updated_at) {
+        await dbRun("UPDATE projets SET updated_at=datetime('now') WHERE id=? AND updated_at IS NULL",[req.params.id]);
+      }
       if (current && current.updated_at && current.updated_at > p._opened_at) {
         return res.status(409).json({
           conflict: true,

@@ -1038,7 +1038,35 @@ async function saveProjet() {
     bc:document.getElementById('f-bc').value,
   };
   if (editId) {
-    await fetch(`/api/projets/${editId}`, {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+    // Ajouter la référence d'ouverture pour détection de conflit
+    data._opened_at = _openedAt;
+    const resp = await fetch(`/api/projets/${editId}`, {
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(data)
+    });
+    if (resp.status === 409) {
+      const err = await resp.json();
+      const forcer = confirm(
+        '⚠️ CONFLIT DÉTECTÉ\n\n' +
+        'Ce projet a été modifié par quelqu\'un d\'autre pendant que vous l\'éditiez.\n\n' +
+        'Dernière modification enregistrée : ' + err.updated_at + '\n\n' +
+        'Cliquez OK pour écraser avec vos changements.\n' +
+        'Cliquez Annuler pour abandonner vos changements.'
+      );
+      if (!forcer) {
+        closeModal();
+        await loadProjets();
+        return;
+      }
+      // Forcer sans vérification de conflit
+      delete data._opened_at;
+      await fetch(`/api/projets/${editId}`, {
+        method:'PUT',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(data)
+      });
+    }
   } else {
     await fetch('/api/projets', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
   }
