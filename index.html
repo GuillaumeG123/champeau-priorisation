@@ -823,7 +823,7 @@ function renderTable() {
   list.sort((a,b) => {
     const map = {
       nom:[a.nom,b.nom], etat:[a.etat,b.etat], resp:[a.resp||'',b.resp||''],
-      cote:[coteTot(a)??-1, coteTot(b)??-1], urg:[calcUrg(a),calcUrg(b)],
+      cote:[a.etat==='Terminé'?-99:coteTot(a)??-1, b.etat==='Terminé'?-99:coteTot(b)??-1], urg:[calcUrg(a),calcUrg(b)],
       pib:[pibVal(a),pibVal(b)], sst:[a.sst??-1,b.sst??-1], arret:[a.arret??-1,b.arret??-1],
       strat:[a.strat??-1,b.strat??-1], jours:[a.jours??-1,b.jours??-1],
       prog:[a.prog??0,b.prog??0], datev:[a.datev||'',b.datev||''], datec:[a.datec||'',b.datec||'']
@@ -840,24 +840,27 @@ function renderTable() {
   }
 
   tbody.innerHTML = list.map(p => {
-    const ct = coteTot(p), cl = getClasse(ct), u = calcUrg(p);
+    const ct = p.etat==='Terminé' ? null : coteTot(p);
+    const cl = p.etat==='Terminé' ? null : getClasse(ct);
+    const u  = p.etat==='Terminé' ? 0 : calcUrg(p);
     const hasNote = p.notes && p.notes.trim();
-    return `<tr>
-      <td class="td-nom" onclick="openModal(${p.id})" onmouseenter="showTip(event,${p.id})" onmouseleave="hideTip()">${p.nom}</td>
+    const isTermine = p.etat === 'Terminé';
+    return `<tr style="${isTermine?'opacity:0.6':''}">
+      <td class="td-nom" onclick="openModal(${p.id})" onmouseenter="showTip(event,${p.id})" onmouseleave="hideTip()">${isTermine?'<s>'+p.nom+'</s>':p.nom}</td>
       <td class="td-c"><span class="note-ico ${hasNote?'has':'empty'}" onclick="openModal(${p.id})" title="${hasNote?'Modifier commentaires':'Ajouter un commentaire'}"></span></td>
       <td class="td-c"><span class="bdg bdg-${p.etat||''}">${p.etat||'—'}</span></td>
       <td class="td-c" style="font-size:10px">${p.resp||'—'}</td>
-      <td class="td-c">${ct!==null?`<span class="cote-badge">${(ct*100).toFixed(1)}%</span>`:'<span style="color:var(--text3);font-size:10px">À évaluer</span>'}</td>
-      <td class="td-c">${cl?`<span class="bdg bdg-${cl}">${cl}</span>`:'<span style="color:var(--text3);font-size:10px">—</span>'}</td>
-      <td class="td-c">${u>0?`<span class="urg-badge">+${(u*100).toFixed(1)}%</span>`:'<span style="font-size:9px;color:var(--text3)">—</span>'}</td>
-      <td class="td-c" style="font-size:10px">${p.prog!=null?p.prog+'%':'—'}</td>
-      <td class="td-c">${renderDateV(p)}</td>
-      <td class="td-c">${renderDateC(p)}</td>
-      <td class="td-c" style="font-size:10px">${pibVal(p)>0?(pibVal(p)*100).toFixed(2)+'%':'—'}</td>
-      <td class="td-c">${renderBar(p.sst)}</td>
-      <td class="td-c">${renderBar(p.arret)}</td>
-      <td class="td-c">${renderBar(p.strat)}</td>
-      <td class="td-c">${renderBar(p.jours)}</td>
+      <td class="td-c">${isTermine?'<span style="color:var(--text3);font-size:10px">—</span>':ct!==null?`<span class="cote-badge">${(ct*100).toFixed(1)}%</span>`:'<span style="color:var(--text3);font-size:10px">À évaluer</span>'}</td>
+      <td class="td-c">${isTermine?'<span style="color:var(--text3);font-size:10px">—</span>':cl?`<span class="bdg bdg-${cl}">${cl}</span>`:'<span style="color:var(--text3);font-size:10px">—</span>'}</td>
+      <td class="td-c">${isTermine?'<span style="font-size:9px;color:var(--text3)">—</span>':u>0?`<span class="urg-badge">+${(u*100).toFixed(1)}%</span>`:'<span style="font-size:9px;color:var(--text3)">—</span>'}</td>
+      <td class="td-c" style="font-size:10px">${isTermine?'✓':p.prog!=null?p.prog+'%':'—'}</td>
+      <td class="td-c">${isTermine?'<span style="color:var(--text3);font-size:10px">—</span>':renderDateV(p)}</td>
+      <td class="td-c">${isTermine?'<span style="color:var(--text3);font-size:10px">—</span>':renderDateC(p)}</td>
+      <td class="td-c" style="font-size:10px">${isTermine?'—':pibVal(p)>0?(pibVal(p)*100).toFixed(2)+'%':'—'}</td>
+      <td class="td-c">${isTermine?'—':renderBar(p.sst)}</td>
+      <td class="td-c">${isTermine?'—':renderBar(p.arret)}</td>
+      <td class="td-c">${isTermine?'—':renderBar(p.strat)}</td>
+      <td class="td-c">${isTermine?'—':renderBar(p.jours)}</td>
       <td class="td-c" style="white-space:nowrap">
         <button class="btn" style="padding:2px 8px;font-size:10px" onclick="openModal(${p.id})">Éditer</button>
         <button class="btn" style="padding:2px 8px;font-size:10px;color:var(--r)" onclick="deleteProjet(${p.id})">✕</button>
