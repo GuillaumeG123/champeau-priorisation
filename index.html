@@ -238,7 +238,6 @@ tbody tr:nth-child(even):hover td{background:#FEF2F2}
 <div class="tabs">
   <div class="tab active" onclick="switchTab('liste')">📋 Liste des projets</div>
   <div class="tab" onclick="switchTab('dash')">📊 Tableau de bord</div>
-  <div class="tab" onclick="switchTab('grille')">⚖️ Grille d'évaluation</div>
   <div class="tab" onclick="switchTab('cal')">📅 Calendrier</div>
   <div class="tab" onclick="switchTab('intervenants')">👥 Intervenants</div>
 </div>
@@ -316,34 +315,6 @@ tbody tr:nth-child(even):hover td{background:#FEF2F2}
       <h3>Top PIB/h — actifs</h3>
       <div id="top-pib"></div>
     </div>
-  </div>
-</div>
-
-<!-- GRILLE -->
-<div id="view-grille" class="view">
-  <div class="card" style="margin-bottom:14px">
-    <h3 style="font-size:12px;font-weight:700;color:var(--r);margin-bottom:12px">Table de pondération — scores réels (Excel original)</h3>
-    <div style="overflow-x:auto">
-      <table class="grille-table">
-        <thead><tr>
-          <th style="min-width:35px">Niv.</th>
-          <th style="min-width:90px">SST</th><th>Score</th>
-          <th style="min-width:80px">PIB/h</th><th>Score</th>
-          <th style="min-width:110px">Arrêt potentiel</th><th>Score</th>
-          <th style="min-width:130px">Impact stratégique</th><th>Score</th>
-          <th style="min-width:80px">Nb jours</th><th>Score</th>
-        </tr></thead>
-        <tbody id="grille-body"></tbody>
-      </table>
-    </div>
-  </div>
-  <div class="formula-box card">
-    <div style="font-size:12px;font-weight:700;color:var(--r);margin-bottom:10px">Formule de calcul — fidèle à l'Excel Champeau</div>
-    <b>Cote</b> = (Score_SST + Score_PIB/h + Score_Arrêt + Score_Strat + Urgence) ÷ (390 + max_urgence)<br>
-    <b>Urgence</b> = ((1 − %prog) × Score_Jours) ÷ jours_restants × 0.5 — si date critique saisie<br>
-    <b>Score PIB/h</b> = normalisé dynamiquement (écart-type + moyenne des projets actifs)<br>
-    <b>Classe</b> : <b style="color:var(--r)">A</b> ≥ moy+σ | <b style="color:#7F4000">B</b> ≥ moy+0.5σ | <b style="color:#5F4000">C</b> ≥ moy | <b style="color:#1B5E20">D</b> ≥ moy−0.5σ | <b style="color:#0D47A1">E</b> &lt; moy−0.5σ<br>
-    <b>La classe est calculée automatiquement</b> — jamais saisie manuellement.
   </div>
 </div>
 
@@ -465,26 +436,97 @@ tbody tr:nth-child(even):hover td{background:#FEF2F2}
       <div class="form-group"><label>No. BC</label><input id="f-bc"></div>
       <div class="form-full form-group"><label>Commentaires / Notes</label><textarea id="f-notes" placeholder="Contexte, avancement, blocages, prochaines étapes..."></textarea></div>
 
-      <div class="section-title">Critères d'évaluation — niveau 0 à 5</div>
+      <div class="section-title">Critères d'évaluation — cliquez sur le niveau 0 à 5</div>
 
+      <!-- SST -->
       <div class="form-full criteria-row">
-        <label>SST — Sécurité (probabilité × gravité) [max 100pts]</label>
-        <div class="lvl-btns" id="btn-sst"></div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+          <label style="margin-bottom:0;font-weight:700;color:var(--r)">SST — Sécurité</label>
+          <span style="font-size:10px;color:var(--text3)">(probabilité × gravité) · max 100 pts</span>
+        </div>
+        <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:4px">
+          <thead><tr>
+            <th style="background:var(--r);color:white;padding:4px 6px;text-align:center;width:36px">Niv.</th>
+            <th style="background:var(--r);color:white;padding:4px 8px;text-align:left">Description</th>
+            <th style="background:var(--r);color:white;padding:4px 6px;text-align:center;width:50px">Score</th>
+          </tr></thead>
+          <tbody id="grille-sst"></tbody>
+        </table>
+        </div>
+        <div style="display:flex;gap:4px;align-items:center;margin-top:2px">
+          <span style="font-size:10px;color:var(--text2);margin-right:4px">Niveau sélectionné :</span>
+          <div class="lvl-btns" id="btn-sst"></div>
+        </div>
         <div class="lvl-desc" id="desc-sst"></div>
       </div>
+
+      <!-- ARRÊT -->
       <div class="form-full criteria-row">
-        <label>Arrêt potentiel (fréquence × durée / an) [max 90pts]</label>
-        <div class="lvl-btns" id="btn-arret"></div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+          <label style="margin-bottom:0;font-weight:700;color:var(--r)">Arrêt potentiel</label>
+          <span style="font-size:10px;color:var(--text3)">(fréquence × durée / an) · max 90 pts</span>
+        </div>
+        <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:4px">
+          <thead><tr>
+            <th style="background:var(--r);color:white;padding:4px 6px;text-align:center;width:36px">Niv.</th>
+            <th style="background:var(--r);color:white;padding:4px 8px;text-align:left">Description</th>
+            <th style="background:var(--r);color:white;padding:4px 6px;text-align:center;width:50px">Score</th>
+          </tr></thead>
+          <tbody id="grille-arret"></tbody>
+        </table>
+        </div>
+        <div style="display:flex;gap:4px;align-items:center;margin-top:2px">
+          <span style="font-size:10px;color:var(--text2);margin-right:4px">Niveau sélectionné :</span>
+          <div class="lvl-btns" id="btn-arret"></div>
+        </div>
         <div class="lvl-desc" id="desc-arret"></div>
       </div>
+
+      <!-- STRATÉGIE -->
       <div class="form-full criteria-row">
-        <label>Impact stratégique [max 100pts]</label>
-        <div class="lvl-btns" id="btn-strat"></div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+          <label style="margin-bottom:0;font-weight:700;color:var(--r)">Impact stratégique</label>
+          <span style="font-size:10px;color:var(--text3)">· max 100 pts</span>
+        </div>
+        <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:4px">
+          <thead><tr>
+            <th style="background:var(--r);color:white;padding:4px 6px;text-align:center;width:36px">Niv.</th>
+            <th style="background:var(--r);color:white;padding:4px 8px;text-align:left">Description</th>
+            <th style="background:var(--r);color:white;padding:4px 6px;text-align:center;width:50px">Score</th>
+          </tr></thead>
+          <tbody id="grille-strat"></tbody>
+        </table>
+        </div>
+        <div style="display:flex;gap:4px;align-items:center;margin-top:2px">
+          <span style="font-size:10px;color:var(--text2);margin-right:4px">Niveau sélectionné :</span>
+          <div class="lvl-btns" id="btn-strat"></div>
+        </div>
         <div class="lvl-desc" id="desc-strat"></div>
       </div>
+
+      <!-- JOURS -->
       <div class="form-full criteria-row">
-        <label>Nb jours réalisation (ing + fab + inst) — utilisé pour l'urgence uniquement [max 350pts]</label>
-        <div class="lvl-btns" id="btn-jours"></div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+          <label style="margin-bottom:0;font-weight:700;color:var(--r)">Nb jours réalisation</label>
+          <span style="font-size:10px;color:var(--text3)">(ing + fab + inst) · affecte l'urgence uniquement · max 350 pts</span>
+        </div>
+        <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:4px">
+          <thead><tr>
+            <th style="background:var(--r);color:white;padding:4px 6px;text-align:center;width:36px">Niv.</th>
+            <th style="background:var(--r);color:white;padding:4px 8px;text-align:left">Description</th>
+            <th style="background:var(--r);color:white;padding:4px 6px;text-align:center;width:50px">Score</th>
+          </tr></thead>
+          <tbody id="grille-jours"></tbody>
+        </table>
+        </div>
+        <div style="display:flex;gap:4px;align-items:center;margin-top:2px">
+          <span style="font-size:10px;color:var(--text2);margin-right:4px">Niveau sélectionné :</span>
+          <div class="lvl-btns" id="btn-jours"></div>
+        </div>
         <div class="lvl-desc" id="desc-jours"></div>
       </div>
 
@@ -701,6 +743,10 @@ function sortBy(col) {
 }
 
 function renderTable() {
+  // Si l'onglet calendrier est actif, le rafraîchir aussi
+  if (document.getElementById('view-cal').classList.contains('active')) {
+    renderCal();
+  }
   const ef = document.getElementById('f-etat').value;
   const rf = document.getElementById('f-resp').value;
   const sf = document.getElementById('f-search').value.toLowerCase();
@@ -833,8 +879,21 @@ function renderCal() {
   const m2 = (base.getMonth()+1)%12, y2 = base.getMonth()===11 ? base.getFullYear()+1 : base.getFullYear();
   document.getElementById('cal-title').textContent = `${MOIS[base.getMonth()]} ${base.getFullYear()} — ${MOIS[m2]} ${y2}`;
 
+  // Appliquer les mêmes filtres que la liste
+  const ef = document.getElementById('f-etat').value;
+  const rf = document.getElementById('f-resp').value;
+  const sf = document.getElementById('f-search').value.toLowerCase();
+  const projFiltres = projets.filter(p => {
+    if (ef && p.etat !== ef) return false;
+    if (rf && p.resp !== rf) return false;
+    if (sf && !p.nom.toLowerCase().includes(sf)) return false;
+    // Si aucun filtre d'état, garder Actif et Attente seulement
+    if (!ef && p.etat !== 'Actif' && p.etat !== 'Attente') return false;
+    return true;
+  });
+
   const evts = {};
-  projets.filter(p=>p.etat==='Actif'||p.etat==='Attente').forEach(p => {
+  projFiltres.forEach(p => {
     if (p.datev) { if(!evts[p.datev])evts[p.datev]=[]; evts[p.datev].push({nom:p.nom,type:'visee'}); }
     if (p.datec) {
       if(!evts[p.datec])evts[p.datec]=[];
@@ -873,14 +932,14 @@ function renderCal() {
     for(let i=1;i<7-ld;i++) h+=`<div class="cal-day other"><div class="dn">${i}</div></div>`;
     h+='</div></div>'; wrap.innerHTML+=h;
   }
-  renderTimeline(today, base);
+  renderTimeline(today, base, projFiltres);
 }
 
-function renderTimeline(today, base) {
+function renderTimeline(today, base, projFiltres) {
   const end=new Date(base.getFullYear(),base.getMonth()+6,0);
   const totalDays=Math.ceil((end-base)/864e5)+1, TW=500, dpx=TW/totalDays;
   const byR={};
-  projets.filter(p=>(p.etat==='Actif'||p.etat==='Attente')&&(p.datev||p.datec)).forEach(p=>{
+  projFiltres.filter(p=>p.datev||p.datec).forEach(p=>{
     const r=p.resp||'(Sans responsable)'; if(!byR[r])byR[r]=[]; byR[r].push(p);
   });
   let hdr=`<div class="tl-header"><div class="tl-lbl"></div><div class="tl-months" style="width:${TW}px">`;
@@ -933,6 +992,36 @@ function renderTimeline(today, base) {
 }
 
 // ── MODAL ─────────────────────────────────────────────
+// Générer les grilles dans le modal
+function buildGrilleModal() {
+  const NB = ['#D0D0D0','#C0A8A8','#A87070','#8B3A3A','#7A1A1A','#5A0A0A'];
+  const NT = ['#333','#3A2020','#fff','#fff','#fff','#fff'];
+  const pib_descs = ['Négatif','Très faible','Faible','Modéré','Important','Critique'];
+
+  const configs = [
+    { id:'grille-sst',   key:'sst',   descs:P.sst.l,   scores:P.sst.s   },
+    { id:'grille-arret', key:'arret', descs:P.arret.l, scores:P.arret.s },
+    { id:'grille-strat', key:'strat', descs:P.strat.l, scores:P.strat.s },
+    { id:'grille-jours', key:'jours', descs:P.jours.l, scores:P.jours.s },
+  ];
+
+  configs.forEach(({id, key, descs, scores}) => {
+    const tbody = document.getElementById(id);
+    if (!tbody) return;
+    tbody.innerHTML = [0,1,2,3,4,5].map(n => {
+      const bg = NB[n], fg = NT[n];
+      const isSel = SC[key] === n;
+      return `<tr style="background:${bg};color:${fg};cursor:pointer;${isSel?'outline:2px solid var(--r);outline-offset:-2px;font-weight:700':''}"
+               onclick="pickLvl('btn-${key}','desc-${key}','${key}',${n});buildGrilleModal()"
+               title="Cliquer pour sélectionner le niveau ${n}">
+        <td style="text-align:center;padding:4px 6px;font-weight:700;font-size:11px">${n}${isSel?' ✓':''}</td>
+        <td style="padding:4px 8px;text-align:left">${descs[n]}</td>
+        <td style="text-align:center;padding:4px 6px;font-weight:600">${scores[n]}</td>
+      </tr>`;
+    }).join('');
+  });
+}
+
 function buildLvlBtns(cid, did, key, cur) {
   document.getElementById(cid).innerHTML = [0,1,2,3,4,5].map(n=>
     `<button class="lvl-btn${SC[key]===n?' sel':''}" onclick="pickLvl('${cid}','${did}','${key}',${n})">${n}</button>`
@@ -1009,6 +1098,7 @@ function openModal(id=null) {
   buildLvlBtns('btn-arret','desc-arret','arret',SC.arret);
   buildLvlBtns('btn-strat','desc-strat','strat',SC.strat);
   buildLvlBtns('btn-jours','desc-jours','jours',SC.jours);
+  buildGrilleModal();
   updatePreview();
   document.getElementById('overlay').classList.add('open');
 }
@@ -1082,11 +1172,10 @@ async function deleteProjet(id) {
 
 // ── TABS ─────────────────────────────────────────────
 function switchTab(t) {
-  document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',['liste','dash','grille','cal','intervenants'][i]===t));
+  document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',['liste','dash','cal','intervenants'][i]===t));
   document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
   document.getElementById('view-'+t).classList.add('active');
   if(t==='dash') renderDash();
-  if(t==='grille') renderGrille();
   if(t==='cal') renderCal();
   if(t==='intervenants') renderIntervenants();
 }
