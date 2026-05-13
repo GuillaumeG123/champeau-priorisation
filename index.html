@@ -6,7 +6,7 @@
 <title>Matrice de priorisation — Champeau</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-:root{--r:#8B1A1A;--rm:#B22222;--or:#F5E6C8;--vc:#1565C0;--cc:#E65100;--bg:#F5F5F5;--bg2:#EBEBEB;--card:#fff;--border:#E0E0E0;--text:#1A1A1A;--text2:#555;--text3:#888}
+:root{--r:#8B1A1A;--rm:#B22222;--or:#F5E6C8;--vc:#1565C0;--cc:#E65100;--bg:#DCDCDC;--bg2:#C8C8C8;--card:#EFEFEF;--border:#BBBBBB;--text:#1A1A1A;--text2:#444;--text3:#666}
 body{font-family:Arial,sans-serif;font-size:13px;color:var(--text);background:var(--bg);min-height:100vh}
 
 /* Header */
@@ -51,7 +51,7 @@ thead th.sa::after{content:" ▲";font-size:9px}
 thead th.sd::after{content:" ▼";font-size:9px}
 tbody td{padding:6px 8px;border-bottom:1px solid var(--bg2);vertical-align:middle}
 tbody tr:hover td{background:#FEF2F2}
-tbody tr:nth-child(even) td{background:#FAFAFA}
+tbody tr:nth-child(even) td{background:#E3E3E3}
 tbody tr:nth-child(even):hover td{background:#FEF2F2}
 .td-nom{text-align:left;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;color:var(--text);font-weight:500}
 .td-nom:hover{color:var(--r);text-decoration:underline}
@@ -471,8 +471,8 @@ const P = {
 };
 const DENOM = 390;
 const URG_F = 0.5;
-const NB_COLORS = ['#F0F0F0','#EAE0E0','#D9C0C0','#C49090','#B06070','#B22222'];
-const NB_TEXT   = ['#808080','#4D4D4D','#1A1A1A','white','white','white'];
+const NB_COLORS = ['#D0D0D0','#C0A8A8','#A87070','#8B3A3A','#7A1A1A','#5A0A0A'];
+const NB_TEXT   = ['#333333','#3A2020','#fff','#fff','#fff','#fff'];
 const MOIS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 const MOIS3 = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
 const DOW = ['Lu','Ma','Me','Je','Ve','Sa','Di'];
