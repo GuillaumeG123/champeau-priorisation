@@ -990,8 +990,9 @@ function updatePreview() {
 
 function openModal(id=null) {
   editId = id;
-  _openedAt = new Date().toISOString().replace('T',' ').substring(0,19);
   const p = id ? projets.find(x=>x.id===id) : null;
+  // Utiliser updated_at du projet comme référence — beaucoup plus fiable que l'horloge du navigateur
+  _openedAt = p?.updated_at || null;
   document.getElementById('modal-title').textContent = p ? 'Modifier le projet' : 'Nouveau projet';
   document.getElementById('f-nom').value = p?.nom||'';
   document.getElementById('f-etat2').value = p?.etat||'Actif';
