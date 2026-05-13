@@ -69,6 +69,7 @@ tbody tr:nth-child(even):hover td{background:#FEF2F2}
 .bdg-Attente{background:#FFF3E0;color:#7F4000}
 .bdg-Définition{background:#FFF8E1;color:#5F4000}
 .bdg-Exploratoire{background:#EDE7F6;color:#4527A0}
+.bdg-Terminé{background:#E0E0E0;color:#424242}
 .cote-badge{display:inline-block;background:var(--r);color:var(--or);font-weight:700;border-radius:4px;padding:2px 7px;font-size:10px}
 .urg-badge{display:inline-block;background:#FF6B00;color:white;font-weight:600;border-radius:4px;padding:1px 6px;font-size:9px}
 
@@ -250,6 +251,7 @@ tbody tr:nth-child(even):hover td{background:#FEF2F2}
     <option value="Définition">Définition</option>
     <option value="Attente">Attente</option>
     <option value="Exploratoire">Exploratoire</option>
+    <option value="Terminé">Terminé</option>
   </select>
   <label>Responsable</label>
   <select id="f-resp" onchange="renderTable()"><option value="">Tous</option></select>
@@ -433,7 +435,7 @@ tbody tr:nth-child(even):hover td{background:#FEF2F2}
       <div class="form-full form-group"><label>Nom du projet *</label><input id="f-nom" oninput="updatePreview()"></div>
       <div class="form-group"><label>État</label>
         <select id="f-etat2">
-          <option>Actif</option><option>Définition</option><option>Attente</option><option>Exploratoire</option>
+          <option>Actif</option><option>Définition</option><option>Attente</option><option>Exploratoire</option><option>Terminé</option>
         </select>
       </div>
       <div class="form-group"><label>Responsable</label><input id="f-resp2" list="resp-dl"><datalist id="resp-dl"></datalist></div>
@@ -655,7 +657,7 @@ async function loadProjets() {
 
 function recalc() {
   // Score PIB continu (0-100 pts) — proportionnel au max des actifs
-  const actifs = projets.filter(p => p.etat === 'Actif');
+  const actifs = projets.filter(p => p.etat === 'Actif' || p.etat === 'Attente');
   const pibs = actifs.map(pibVal).filter(v => v > 0);
   const maxPib = pibs.length > 0 ? Math.max(...pibs) : 1;
   projets.forEach(p => {
@@ -773,7 +775,7 @@ function updateSeuilsBar() {
 }
 
 function updateGlobalKPIs() {
-  const a = projets.filter(p=>p.etat==='Actif');
+  const a = projets.filter(p=>p.etat==='Actif'&&p.etat!=='Terminé');
   document.getElementById('k-actifs').textContent = a.length;
   document.getElementById('k-total').textContent = projets.length;
   const pibs = a.map(pibVal).filter(v=>v>0);
@@ -886,7 +888,7 @@ document.getElementById('tooltip').addEventListener('mouseleave', hideTip);
 // ── DASHBOARD ─────────────────────────────────────────
 function renderDash() {
   recalc();
-  const a = projets.filter(p=>p.etat==='Actif');
+  const a = projets.filter(p=>p.etat==='Actif'&&p.etat!=='Terminé');
   const cs = a.map(coteTot).filter(c=>c!==null);
   const avg = cs.length ? cs.reduce((a,b)=>a+b)/cs.length : 0;
   const retards = a.filter(p=>['late','warn'].includes(dateStatus(p,p.datev))||['late','warn'].includes(dateStatus(p,p.datec))).length;
@@ -950,6 +952,7 @@ function renderCal() {
     if (sf && !p.nom.toLowerCase().includes(sf)) return false;
     // Si aucun filtre d'état, garder Actif et Attente seulement
     if (!ef && p.etat !== 'Actif' && p.etat !== 'Attente') return false;
+    if (p.etat === 'Terminé' && ef !== 'Terminé') return false;
     return true;
   });
 
