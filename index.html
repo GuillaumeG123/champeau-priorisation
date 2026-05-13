@@ -440,6 +440,52 @@ tbody tr:nth-child(even):hover td{background:#FEF2F2}
       <div class="form-group"><label>Impact $/an</label><input id="f-impact" type="number" placeholder="0" oninput="updatePreview()"></div>
       <div class="form-group"><label>Réduction hr/an</label><input id="f-hrs" type="number" placeholder="0" oninput="updatePreview()"></div>
       <div class="form-group"><label>No. BC</label><input id="f-bc"></div>
+      <div class="form-full">
+        <div id="pib-detail" style="background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:10px 14px;font-size:11px;display:none">
+          <div style="font-weight:700;color:var(--r);margin-bottom:8px;font-size:12px">📊 Détail du calcul PIB/h</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">
+            <div style="background:var(--card);border-radius:5px;padding:8px 10px">
+              <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.3px;margin-bottom:3px">Impact $/an</div>
+              <div id="pib-impact" style="font-size:14px;font-weight:700;color:var(--text)">—</div>
+            </div>
+            <div style="background:var(--card);border-radius:5px;padding:8px 10px">
+              <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.3px;margin-bottom:3px">Heures × 25$/h</div>
+              <div id="pib-hrs" style="font-size:14px;font-weight:700;color:var(--text)">—</div>
+            </div>
+            <div style="background:var(--card);border-radius:5px;padding:8px 10px">
+              <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.3px;margin-bottom:3px">Total $/an</div>
+              <div id="pib-total" style="font-size:14px;font-weight:700;color:var(--r)">—</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <div style="font-size:10px;color:var(--text2)">
+              <span style="font-family:monospace">PIB/h = Total ÷ 1 820 000h</span>
+              <span style="margin:0 6px;color:var(--text3)">→</span>
+              <span id="pib-ratio" style="font-weight:700;color:var(--r)">—</span>
+            </div>
+            <div style="flex:1;height:1px;background:var(--border)"></div>
+            <div style="font-size:10px;color:var(--text2)">
+              Score normalisé :
+              <span id="pib-score-lbl" style="font-weight:700;color:var(--r)">—</span>
+              <span id="pib-score-pts" style="font-size:9px;color:var(--text3);margin-left:3px"></span>
+            </div>
+            <div style="font-size:10px;color:var(--text2)">
+              Contribution à la cote :
+              <span id="pib-contrib" style="font-weight:700;color:var(--r)">—</span>
+            </div>
+          </div>
+          <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
+            <div style="font-size:9px;color:var(--text3);margin-bottom:4px">Position parmi les projets actifs</div>
+            <div id="pib-bar-wrap" style="position:relative;height:12px;background:var(--bg2);border-radius:6px;overflow:hidden">
+              <div id="pib-bar-fill" style="position:absolute;left:0;top:0;height:100%;background:linear-gradient(90deg,var(--r),#E57373);border-radius:6px;transition:.3s"></div>
+              <div id="pib-bar-marker" style="position:absolute;top:-2px;width:2px;height:16px;background:#1565C0;border-radius:1px"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text3);margin-top:3px">
+              <span>0</span><span id="pib-bar-max">max</span>
+            </div>
+          </div>
+        </div>
+      </div>
       <div class="form-full form-group"><label>Commentaires / Notes</label><textarea id="f-notes" placeholder="Contexte, avancement, blocages, prochaines étapes..."></textarea></div>
 
       <div class="section-title">Critères d'évaluation — cliquez sur le niveau 0 à 5</div>
@@ -1047,6 +1093,29 @@ function updatePreview() {
   const imp = parseFloat(document.getElementById('f-impact').value)||0;
   const hrs = parseFloat(document.getElementById('f-hrs').value)||0;
   const v = (imp+hrs*25)>0 ? (imp+hrs*25)/1820000 : 0;
+
+  // ── Détail PIB/h ──────────────────────────────────
+  const pibDetail = document.getElementById('pib-detail');
+  if (imp > 0 || hrs > 0) {
+    pibDetail.style.display = 'block';
+    const hrsVal = hrs * 25;
+    const total = imp + hrsVal;
+    document.getElementById('pib-impact').textContent = imp > 0 ? imp.toLocaleString('fr-CA', {style:'currency',currency:'CAD',maximumFractionDigits:0}) : '—';
+    document.getElementById('pib-hrs').textContent = hrsVal > 0 ? hrsVal.toLocaleString('fr-CA', {style:'currency',currency:'CAD',maximumFractionDigits:0}) : '—';
+    document.getElementById('pib-total').textContent = total.toLocaleString('fr-CA', {style:'currency',currency:'CAD',maximumFractionDigits:0});
+    document.getElementById('pib-ratio').textContent = (v*100).toFixed(2) + '%';
+    // Barre de position parmi les actifs
+    const actifsPib = projets.filter(p=>p.etat==='Actif'&&pibVal(p)>0).map(pibVal);
+    const maxPib = actifsPib.length ? Math.max(...actifsPib, v) : v;
+    const pct = maxPib > 0 ? (v / maxPib * 100) : 0;
+    document.getElementById('pib-bar-fill').style.width = pct + '%';
+    document.getElementById('pib-bar-max').textContent = (maxPib*100).toFixed(2) + '%';
+    // Marqueur position actuelle
+    const marker = document.getElementById('pib-bar-marker');
+    if (marker) marker.style.left = pct + '%';
+  } else {
+    pibDetail.style.display = 'none';
+  }
   const actifs = projets.filter(p=>p.etat==='Actif'&&pibVal(p)>0);
   const vals = [...actifs.map(pibVal), v].filter(x=>x>0);
   let ps = 2;
@@ -1055,6 +1124,13 @@ function updatePreview() {
     const std=Math.sqrt(vals.map(x=>(x-avg)**2).reduce((a,b)=>a+b)/(vals.length-1));
     ps = std>0 ? Math.max(0,Math.min(5,Math.round(2.5+2.5*(v-avg)/(2*std)))) : 2;
   }
+  // Afficher le score normalisé PIB
+  const pibScoreLbl = document.getElementById('pib-score-lbl');
+  const pibScorePts = document.getElementById('pib-score-pts');
+  const pibContrib = document.getElementById('pib-contrib');
+  if (pibScoreLbl) pibScoreLbl.textContent = 'Niveau ' + ps;
+  if (pibScorePts) pibScorePts.textContent = '(' + [0,30,50,70,80,100][ps] + ' pts / 100)';
+  if (pibContrib) pibContrib.textContent = ([0,30,50,70,80,100][ps] / 390 * 100).toFixed(1) + '% de la cote';
   const base = (P.sst.s[SC.sst]+P.pib.s[ps]+P.arret.s[SC.arret]+P.strat.s[SC.strat]) / DENOM;
   const prog = parseFloat(document.getElementById('f-prog').value)||0;
   const datec = document.getElementById('f-datec').value;
