@@ -627,7 +627,7 @@ const P = {
   jours:{ l:['Aucun','1 semaine','1 mois','3 mois','6 mois','< 12 mois'],              s:[0,7,30,90,120,350] },
   pib:  { s:[0,30,50,70,80,100] },
 };
-const DENOM = 390;
+const DENOM = 440;
 const URG_F = 0.5;
 const NB_COLORS = ['#D0D0D0','#C0A8A8','#A87070','#8B3A3A','#7A1A1A','#5A0A0A'];
 const NB_TEXT   = ['#333333','#3A2020','#fff','#fff','#fff','#fff'];
@@ -661,7 +661,7 @@ function recalc() {
   projets.forEach(p => {
     const v = pibVal(p);
     // _pibScore = score continu 0-100 pts
-    p._pibScore = v > 0 ? Math.min(100, (v / maxPib) * 100) : 0;
+    p._pibScore = v > 0 ? Math.min(150, (v / maxPib) * 150) : 0;
     p._ps = null; // plus utilisé pour le calcul, gardé pour compatibilité
   });
   // Seuils dynamiques
@@ -1134,7 +1134,7 @@ function updatePreview() {
   // Score PIB continu dans le contexte des actifs
   const actifsPib = projets.filter(p=>p.etat==='Actif').map(pibVal);
   const maxPibAll = actifsPib.length > 0 ? Math.max(...actifsPib, v) : v;
-  const pibScoreCont = v > 0 && maxPibAll > 0 ? Math.min(100, (v/maxPibAll)*100) : 0;
+  const pibScoreCont = v > 0 && maxPibAll > 0 ? Math.min(150, (v/maxPibAll)*150) : 0;
   // Afficher le score PIB continu
   const pibScoreLbl = document.getElementById('pib-score-lbl');
   const pibScorePts = document.getElementById('pib-score-pts');
