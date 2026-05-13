@@ -110,6 +110,17 @@ app.post('/api/projets', async (req,res) => {
 app.put('/api/projets/:id', async (req,res) => {
   const p=req.body;
   try {
+    // Verrouillage optimiste
+    if (p._opened_at) {
+      const current = (await dbAll('SELECT updated_at FROM projets WHERE id=?',[req.params.id]))[0];
+      if (current && current.updated_at && current.updated_at > p._opened_at) {
+        return res.status(409).json({
+          conflict: true,
+          message: 'Ce projet a ete modifie par quelqu un d autre depuis que vous l avez ouvert.',
+          updated_at: current.updated_at
+        });
+      }
+    }
     await dbRun(`UPDATE projets SET nom=?,etat=?,resp=?,impact=?,hrs=?,sst=?,arret=?,strat=?,jours=?,prog=?,datev=?,datec=?,notes=?,bc=?,updated_at=datetime('now') WHERE id=?`,
       [p.nom,p.etat,p.resp,p.impact,p.hrs,p.sst,p.arret,p.strat,p.jours,p.prog,p.datev,p.datec,p.notes,p.bc,req.params.id]);
     res.json((await dbAll('SELECT * FROM projets WHERE id=?',[req.params.id]))[0]);

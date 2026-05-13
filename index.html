@@ -546,6 +546,7 @@ let sortCol = 'cote', sortDir = -1;
 let calOff = 0;
 let SL = [];
 let editId = null;
+let _openedAt = null;
 let SC = { sst:0, arret:0, strat:0, jours:0 };
 
 // ── CHARGEMENT ────────────────────────────────────────
@@ -989,6 +990,7 @@ function updatePreview() {
 
 function openModal(id=null) {
   editId = id;
+  _openedAt = new Date().toISOString().replace('T',' ').substring(0,19);
   const p = id ? projets.find(x=>x.id===id) : null;
   document.getElementById('modal-title').textContent = p ? 'Modifier le projet' : 'Nouveau projet';
   document.getElementById('f-nom').value = p?.nom||'';
