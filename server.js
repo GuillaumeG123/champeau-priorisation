@@ -214,6 +214,60 @@ app.delete('/api/intervenants/:id', async (req, res) => {
   } catch(e) { res.status(500).json({error:e.message}); }
 });
 
+
+// ── BACKUP / RESTORE ─────────────────────────────────
+app.get('/api/backup', async (req, res) => {
+  try {
+    const { rows: projets } = await pool.query('SELECT * FROM projets ORDER BY id');
+    const { rows: intervenants } = await pool.query('SELECT * FROM intervenants ORDER BY id');
+    const backup = {
+      version: 1,
+      date: new Date().toISOString(),
+      projets,
+      intervenants
+    };
+    res.setHeader('Content-Disposition', `attachment; filename="champeau-backup-${new Date().toISOString().substring(0,10)}.json"`);
+    res.setHeader('Content-Type', 'application/json');
+    res.json(backup);
+    console.log(`✅ Backup exporté — ${projets.length} projets, ${intervenants.length} intervenants`);
+  } catch(e) { res.status(500).json({error:e.message}); }
+});
+
+app.post('/api/restore', async (req, res) => {
+  const { projets, intervenants } = req.body;
+  if (!projets || !intervenants) return res.status(400).json({error:'Fichier invalide'});
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    // Vider les tables
+    await client.query('DELETE FROM projets');
+    await client.query('DELETE FROM intervenants');
+    // Réimporter projets
+    for (const p of projets) {
+      await client.query(
+        `INSERT INTO projets (nom,etat,resp,impact,hrs,sst,arret,strat,jours,prog,datev,datec,notes,bc,updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+        [p.nom,p.etat,p.resp,p.impact,p.hrs,p.sst,p.arret,p.strat,p.jours,p.prog,p.datev||'',p.datec||'',p.notes||'',p.bc||'',p.updated_at||new Date()]
+      );
+    }
+    // Réimporter intervenants
+    for (const i of intervenants) {
+      await client.query(
+        'INSERT INTO intervenants (nom,role,actif) VALUES ($1,$2,$3)',
+        [i.nom, i.role||'', i.actif??1]
+      );
+    }
+    await client.query('COMMIT');
+    console.log(`✅ Restore — ${projets.length} projets, ${intervenants.length} intervenants`);
+    res.json({ ok: true, projets: projets.length, intervenants: intervenants.length });
+  } catch(e) {
+    await client.query('ROLLBACK');
+    res.status(500).json({error:e.message});
+  } finally {
+    client.release();
+  }
+});
+
 // Démarrage
 initDB()
   .then(() => {

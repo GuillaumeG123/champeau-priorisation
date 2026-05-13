@@ -352,8 +352,14 @@ tbody tr:nth-child(even):hover td{background:#FEF2F2}
       <div style="font-size:15px;font-weight:700;color:var(--r)">Gestion des intervenants</div>
       <div style="font-size:11px;color:var(--text2);margin-top:2px">Ajoutez ou retirez des responsables disponibles dans les projets</div>
     </div>
-    <button class="btn primary" onclick="openModalIntervenant()">+ Ajouter un intervenant</button>
+    <div style="display:flex;gap:8px">
+      <button class="btn" onclick="exportBackup()" title="Télécharger une copie de toutes vos données">💾 Sauvegarder</button>
+      <button class="btn" onclick="document.getElementById('restore-input').click()" title="Restaurer depuis un fichier de sauvegarde">📂 Restaurer</button>
+      <input type="file" id="restore-input" accept=".json" style="display:none" onchange="importRestore(event)">
+      <button class="btn primary" onclick="openModalIntervenant()">+ Ajouter un intervenant</button>
+    </div>
   </div>
+  <div id="backup-msg" style="display:none;background:#E8F5E9;border:1px solid #A5D6A7;border-radius:6px;padding:8px 14px;font-size:11px;color:#1B5E20;margin-bottom:12px"></div>
 
   <div class="table-wrap">
     <table>
@@ -716,7 +722,7 @@ function updateGlobalKPIs() {
   document.getElementById('k-actifs').textContent = a.length;
   document.getElementById('k-total').textContent = projets.length;
   const pibs = a.map(pibVal).filter(v=>v>0);
-  document.getElementById('k-pib').textContent = pibs.length ? (pibs.reduce((a,b)=>a+b)/pibs.length*100).toFixed(3)+'%' : '—';
+  document.getElementById('k-pib').textContent = pibs.length ? Math.round(pibs.reduce((a,b)=>a+b)/pibs.length*100)+'%' : '—';
 }
 
 function updateRespFilter() {
@@ -790,7 +796,7 @@ function renderTable() {
       <td class="td-c" style="font-size:10px">${p.prog!=null?p.prog+'%':'—'}</td>
       <td class="td-c">${renderDateV(p)}</td>
       <td class="td-c">${renderDateC(p)}</td>
-      <td class="td-c" style="font-size:10px">${pibVal(p)>0?(pibVal(p)*100).toFixed(3)+'%':'—'}</td>
+      <td class="td-c" style="font-size:10px">${pibVal(p)>0?Math.round(pibVal(p)*100)+'%':'—'}</td>
       <td class="td-c">${renderBar(p.sst)}</td>
       <td class="td-c">${renderBar(p.arret)}</td>
       <td class="td-c">${renderBar(p.strat)}</td>
@@ -851,7 +857,7 @@ function renderDash() {
     <div class="pib-row">
       <div class="pn" title="${p.nom}">${p.nom}</div>
       <div class="pw"><div class="pf" style="width:${pibVal(p)/mx2*100}%"></div></div>
-      <div class="pp">${(pibVal(p)*100).toFixed(3)}%</div>
+      <div class="pp">${Math.round(pibVal(p)*100)}%</div>
     </div>`).join('') || '<div style="font-size:11px;color:var(--text3);padding:8px 0">Aucun PIB/h saisi</div>';
 }
 
@@ -1183,6 +1189,68 @@ function switchTab(t) {
 // ── RAPPORT PDF ───────────────────────────────────────
 function genPDF() {
   window.print();
+}
+
+// ── BACKUP / RESTORE ─────────────────────────────────
+async function exportBackup() {
+  try {
+    const resp = await fetch('/api/backup');
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const date = new Date().toISOString().substring(0,10);
+    a.href = url;
+    a.download = `champeau-backup-${date}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showBackupMsg('✅ Sauvegarde téléchargée ! Conservez ce fichier en lieu sûr.', 'success');
+  } catch(e) {
+    showBackupMsg('❌ Erreur lors de la sauvegarde : ' + e.message, 'error');
+  }
+}
+
+async function importRestore(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  event.target.value = ''; // Reset input
+  if (!confirm('⚠️ RESTAURATION\n\nCette opération va remplacer TOUTES les données actuelles (projets + intervenants) par le contenu du fichier.\n\nContinuer ?')) return;
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    if (!data.projets || !data.intervenants) {
+      showBackupMsg('❌ Fichier invalide — ce n\'est pas un fichier de sauvegarde Champeau.', 'error');
+      return;
+    }
+    showBackupMsg('⏳ Restauration en cours...', 'info');
+    const resp = await fetch('/api/restore', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(data)
+    });
+    const result = await resp.json();
+    if (result.ok) {
+      showBackupMsg(`✅ Restauration réussie — ${result.projets} projets et ${result.intervenants} intervenants restaurés.`, 'success');
+      await loadProjets();
+      await loadIntervenants();
+    } else {
+      showBackupMsg('❌ Erreur : ' + result.error, 'error');
+    }
+  } catch(e) {
+    showBackupMsg('❌ Erreur : ' + e.message, 'error');
+  }
+}
+
+function showBackupMsg(msg, type) {
+  const el = document.getElementById('backup-msg');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.display = 'block';
+  el.style.background = type==='error' ? '#FFEBEE' : type==='info' ? '#E3F2FD' : '#E8F5E9';
+  el.style.borderColor = type==='error' ? '#EF9A9A' : type==='info' ? '#90CAF9' : '#A5D6A7';
+  el.style.color = type==='error' ? '#B71C1C' : type==='info' ? '#0D47A1' : '#1B5E20';
+  if (type !== 'info') setTimeout(() => { el.style.display='none'; }, 5000);
 }
 
 // ── INTERVENANTS ─────────────────────────────────────
