@@ -1111,10 +1111,11 @@ function updatePreview() {
   const pibDetail = document.getElementById('pib-detail');
   if (imp > 0 || hrs > 0) {
     pibDetail.style.display = 'block';
-    const denom2 = BASE_H - hrs;
+    const pibNouv = denom > 0 ? (BASE_VA + imp) / denom : 0;
+    const pibBase = BASE_VA / BASE_H;
     document.getElementById('pib-impact').textContent = imp > 0 ? imp.toLocaleString('fr-CA', {style:'currency',currency:'CAD',maximumFractionDigits:0}) : '—';
-    document.getElementById('pib-hrs').textContent = hrsVal > 0 ? hrsVal.toLocaleString('fr-CA', {style:'currency',currency:'CAD',maximumFractionDigits:0}) : '—';
-    document.getElementById('pib-total').textContent = total.toLocaleString('fr-CA', {style:'currency',currency:'CAD',maximumFractionDigits:0});
+    document.getElementById('pib-hrs').textContent = hrs > 0 ? hrs.toLocaleString('fr-CA', {maximumFractionDigits:0}) + ' h' : '—';
+    document.getElementById('pib-total').textContent = pibNouv > 0 ? pibNouv.toFixed(2) + ' $/h' : '—';
     document.getElementById('pib-ratio').textContent = (v*100).toFixed(2) + '%';
     // Barre de position parmi les actifs
     const actifsPib = projets.filter(p=>p.etat==='Actif'&&pibVal(p)>0).map(pibVal);
