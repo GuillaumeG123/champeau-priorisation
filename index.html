@@ -654,19 +654,16 @@ async function loadProjets() {
 }
 
 function recalc() {
-  // PIB normalisé
+  // Score PIB continu (0-100 pts) — proportionnel au max des actifs
   const actifs = projets.filter(p => p.etat === 'Actif');
   const pibs = actifs.map(pibVal).filter(v => v > 0);
-  if (pibs.length >= 2) {
-    const avg = pibs.reduce((a,b)=>a+b) / pibs.length;
-    const std = Math.sqrt(pibs.map(v=>(v-avg)**2).reduce((a,b)=>a+b) / (pibs.length-1));
-    projets.forEach(p => {
-      const v = pibVal(p);
-      p._ps = std > 0 ? Math.max(0, Math.min(5, Math.round(2.5 + 2.5*(v-avg)/(2*std)))) : 2;
-    });
-  } else {
-    projets.forEach(p => p._ps = 2);
-  }
+  const maxPib = pibs.length > 0 ? Math.max(...pibs) : 1;
+  projets.forEach(p => {
+    const v = pibVal(p);
+    // _pibScore = score continu 0-100 pts
+    p._pibScore = v > 0 ? Math.min(100, (v / maxPib) * 100) : 0;
+    p._ps = null; // plus utilisé pour le calcul, gardé pour compatibilité
+  });
   // Seuils dynamiques
   const cotes = projets.map(coteBase).filter(c => c !== null);
   if (cotes.length >= 2) {
@@ -694,8 +691,10 @@ function pibVal(p) {
 }
 
 function coteBase(p) {
-  if (p.sst===null||p.arret===null||p.strat===null||p.jours===null) return null;
-  return (P.sst.s[p.sst] + P.pib.s[p._ps??2] + P.arret.s[p.arret] + P.strat.s[p.strat]) / DENOM;
+  if (p.sst===null||p.sst===undefined||p.arret===null||p.arret===undefined||p.strat===null||p.strat===undefined||p.jours===null||p.jours===undefined) return null;
+  const sst=parseInt(p.sst), arret=parseInt(p.arret), strat=parseInt(p.strat);
+  const pibScore = p._pibScore ?? 0; // score continu 0-100 pts
+  return (P.sst.s[sst] + pibScore + P.arret.s[arret] + P.strat.s[strat]) / DENOM;
 }
 
 function calcUrg(p) {
@@ -711,7 +710,8 @@ function coteTot(p) {
   const b = coteBase(p); if (b === null) return null;
   const urg = calcUrg(p);
   const maxUrg = Math.max(...projets.map(calcUrg), 0);
-  const num = P.sst.s[p.sst??0] + P.pib.s[p._ps??2] + P.arret.s[p.arret??0] + P.strat.s[p.strat??0] + urg;
+  const pibScore = p._pibScore ?? 0;
+  const num = P.sst.s[parseInt(p.sst??0)] + pibScore + P.arret.s[parseInt(p.arret??0)] + P.strat.s[parseInt(p.strat??0)] + urg;
   return Math.min(1, num / (DENOM + maxUrg));
 }
 
@@ -1131,20 +1131,18 @@ function updatePreview() {
   }
   const actifs = projets.filter(p=>p.etat==='Actif'&&pibVal(p)>0);
   const vals = [...actifs.map(pibVal), v].filter(x=>x>0);
-  let ps = 2;
-  if (vals.length>=2) {
-    const avg=vals.reduce((a,b)=>a+b)/vals.length;
-    const std=Math.sqrt(vals.map(x=>(x-avg)**2).reduce((a,b)=>a+b)/(vals.length-1));
-    ps = std>0 ? Math.max(0,Math.min(5,Math.round(2.5+2.5*(v-avg)/(2*std)))) : 2;
-  }
-  // Afficher le score normalisé PIB
+  // Score PIB continu dans le contexte des actifs
+  const actifsPib = projets.filter(p=>p.etat==='Actif').map(pibVal);
+  const maxPibAll = actifsPib.length > 0 ? Math.max(...actifsPib, v) : v;
+  const pibScoreCont = v > 0 && maxPibAll > 0 ? Math.min(100, (v/maxPibAll)*100) : 0;
+  // Afficher le score PIB continu
   const pibScoreLbl = document.getElementById('pib-score-lbl');
   const pibScorePts = document.getElementById('pib-score-pts');
   const pibContrib = document.getElementById('pib-contrib');
-  if (pibScoreLbl) pibScoreLbl.textContent = 'Niveau ' + ps;
-  if (pibScorePts) pibScorePts.textContent = '(' + [0,30,50,70,80,100][ps] + ' pts / 100)';
-  if (pibContrib) pibContrib.textContent = ([0,30,50,70,80,100][ps] / 390 * 100).toFixed(1) + '% de la cote';
-  const base = (P.sst.s[SC.sst]+P.pib.s[ps]+P.arret.s[SC.arret]+P.strat.s[SC.strat]) / DENOM;
+  if (pibScoreLbl) pibScoreLbl.textContent = pibScoreCont.toFixed(1) + ' pts';
+  if (pibScorePts) pibScorePts.textContent = '/ 100';
+  if (pibContrib) pibContrib.textContent = (pibScoreCont / 390 * 100).toFixed(1) + '% de la cote';
+  const base = (P.sst.s[SC.sst]+pibScoreCont+P.arret.s[SC.arret]+P.strat.s[SC.strat]) / DENOM;
   const prog = parseFloat(document.getElementById('f-prog').value)||0;
   const datec = document.getElementById('f-datec').value;
   const datev = document.getElementById('f-datev').value;
@@ -1156,7 +1154,7 @@ function updatePreview() {
     if(j>0) urg=Math.max(0,((1-prog/100)*(P.jours.s[SC.jours]||0))/j*URG_F);
   }
   const maxUrg=Math.max(...projets.map(calcUrg),urg,0);
-  const total=Math.min(1,(P.sst.s[SC.sst]+P.pib.s[ps]+P.arret.s[SC.arret]+P.strat.s[SC.strat]+urg)/(DENOM+maxUrg));
+  const total=Math.min(1,(P.sst.s[SC.sst]+pibScoreCont+P.arret.s[SC.arret]+P.strat.s[SC.strat]+urg)/(DENOM+maxUrg));
   const cl=getClasse(total);
   document.getElementById('prev-base').textContent = (base*100).toFixed(1)+'%';
   document.getElementById('prev-u').textContent = urg>0 ? '+'+(urg/(DENOM+maxUrg)*100).toFixed(2)+'%' : '0';
