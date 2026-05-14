@@ -300,7 +300,7 @@ tbody tr:nth-child(even):hover td{background:#FEF2F2}
     </div>
     <div style="padding:8px 14px;font-size:10px;color:var(--text3);display:flex;justify-content:space-between;background:var(--bg);border-top:1px solid var(--border)">
       <span id="count-label"></span>
-      <span>* Classe calculée automatiquement — moy ± écart-type | Pond. SST×100 PIB×100 Arrêt×90 Strat×100 ÷ 390</span>
+      <span><span id="pond-label"></span>
     </div>
   </div>
 </div>
@@ -621,15 +621,51 @@ tbody tr:nth-child(even):hover td{background:#FEF2F2}
 </div>
 
 <script>
-// ── PONDÉRATION EXACTE EXCEL CHAMPEAU ────────────────
-const P = {
-  sst:  { l:['Aucun impact','Accepté','Faible','Modéré','Important','Critique'],        s:[0,10,20,50,75,100] },
-  arret:{ l:['Aucun','100$–1k$','1k$–5k$','5k$–10k$','10k$–20k$','> 20k$'],           s:[0,10,40,60,80,90]  },
-  strat:{ l:['Aucun','Report mineur','Report majeur','Nouveau client','Part de marché','Préoccupation critique'], s:[0,30,40,50,80,100] },
-  jours:{ l:['Aucun','1 semaine','1 mois','3 mois','6 mois','< 12 mois'],              s:[0,7,30,90,120,350] },
-  pib:  { s:[0,30,50,70,80,100] },
+// ╔══════════════════════════════════════════════════════╗
+// ║  PONDÉRATION — MODIFIER ICI POUR AJUSTER LES POIDS  ║
+// ╚══════════════════════════════════════════════════════╝
+const POIDS = {
+  SST_MAX:   100,  // Score max Sécurité (niv.5)
+  ARRET_MAX:  90,  // Score max Arrêt potentiel (niv.5)
+  STRAT_MAX: 100,  // Score max Impact stratégique (niv.5)
+  PIB_MAX:   200,  // Score max PIB/h (continu 0→PIB_MAX)
 };
-const DENOM = 490;
+// Dénominateur calculé automatiquement — ne pas modifier
+const PIB_MAX = POIDS.PIB_MAX;
+const DENOM   = POIDS.SST_MAX + POIDS.ARRET_MAX + POIDS.STRAT_MAX + POIDS.PIB_MAX;
+
+// Scores par niveau pour chaque critère (fidèles à l'Excel original)
+const P = {
+  sst:  { l:['Aucun impact','Accepté','Faible','Modéré','Important','Critique'],
+          s:[0,
+             Math.round(POIDS.SST_MAX*0.10),   // niv.1 = 10%
+             Math.round(POIDS.SST_MAX*0.20),   // niv.2 = 20%
+             Math.round(POIDS.SST_MAX*0.50),   // niv.3 = 50%
+             Math.round(POIDS.SST_MAX*0.75),   // niv.4 = 75%
+             POIDS.SST_MAX]                    // niv.5 = 100%
+        },
+  arret:{ l:['Aucun','100$–1k$','1k$–5k$','5k$–10k$','10k$–20k$','> 20k$'],
+          s:[0,
+             Math.round(POIDS.ARRET_MAX*0.111), // niv.1 = 11%
+             Math.round(POIDS.ARRET_MAX*0.444), // niv.2 = 44%
+             Math.round(POIDS.ARRET_MAX*0.667), // niv.3 = 67%
+             Math.round(POIDS.ARRET_MAX*0.889), // niv.4 = 89%
+             POIDS.ARRET_MAX]                   // niv.5 = 100%
+        },
+  strat:{ l:['Aucun','Report mineur','Report majeur','Nouveau client','Part de marché','Préoccupation critique'],
+          s:[0,
+             Math.round(POIDS.STRAT_MAX*0.30),  // niv.1 = 30%
+             Math.round(POIDS.STRAT_MAX*0.40),  // niv.2 = 40%
+             Math.round(POIDS.STRAT_MAX*0.50),  // niv.3 = 50%
+             Math.round(POIDS.STRAT_MAX*0.80),  // niv.4 = 80%
+             POIDS.STRAT_MAX]                   // niv.5 = 100%
+        },
+  jours:{ l:['Aucun','1 semaine','1 mois','3 mois','6 mois','< 12 mois'],
+          s:[0,7,30,90,120,350]                 // scores fixes — urgence seulement
+        },
+  pib:  { s:[0,30,50,70,80,100] },             // legacy — non utilisé (score continu)
+};
+
 const URG_F = 0.5;
 const NB_COLORS = ['#D0D0D0','#C0A8A8','#A87070','#8B3A3A','#7A1A1A','#5A0A0A'];
 const NB_TEXT   = ['#333333','#3A2020','#fff','#fff','#fff','#fff'];
@@ -647,6 +683,9 @@ let SC = { sst:0, arret:0, strat:0, jours:0 };
 
 // ── CHARGEMENT ────────────────────────────────────────
 async function loadProjets() {
+  // Mettre à jour le label de pondération dynamiquement
+  const lbl = document.getElementById('pond-label');
+  if (lbl) lbl.textContent = `* Classe calculée automatiquement — moy ± écart-type | Pond. SST×${POIDS.SST_MAX} PIB×${POIDS.PIB_MAX} Arrêt×${POIDS.ARRET_MAX} Strat×${POIDS.STRAT_MAX} ÷ ${DENOM}`;
   const r = await fetch('/api/projets');
   projets = await r.json();
   recalc();
@@ -663,7 +702,7 @@ function recalc() {
   projets.forEach(p => {
     const v = pibVal(p);
     // _pibScore = score continu 0-100 pts
-    p._pibScore = v > 0 ? Math.min(200, (v / maxPib) * 200) : 0;
+    p._pibScore = v > 0 ? Math.min(PIB_MAX, (v / maxPib) * PIB_MAX) : 0;
     p._ps = null; // plus utilisé pour le calcul, gardé pour compatibilité
   });
   // Seuils dynamiques
@@ -1140,7 +1179,7 @@ function updatePreview() {
   // Score PIB continu dans le contexte des actifs
   const actifsPib = projets.filter(p=>p.etat==='Actif').map(pibVal);
   const maxPibAll = actifsPib.length > 0 ? Math.max(...actifsPib, v) : v;
-  const pibScoreCont = v > 0 && maxPibAll > 0 ? Math.min(200, (v/maxPibAll)*200) : 0;
+  const pibScoreCont = v > 0 && maxPibAll > 0 ? Math.min(PIB_MAX, (v/maxPibAll)*PIB_MAX) : 0;
   // Afficher le score PIB continu
   const pibScoreLbl = document.getElementById('pib-score-lbl');
   const pibScorePts = document.getElementById('pib-score-pts');
