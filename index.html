@@ -223,6 +223,13 @@ tbody tr:nth-child(even):hover td{background:#FEF2F2}
   .view.active{display:block;padding:8px}
   .table-scroll{max-height:none;overflow:visible}
 }
+
+/* ── Arborescence sous-projets ── */
+.tr-child td{background:#EBEBEB!important;font-size:10px}
+.tr-child:hover td{background:#FEF2F2!important}
+.tr-child .td-nom{padding-left:26px!important;color:var(--text2)}
+.tr-toggle{cursor:pointer;user-select:none;color:var(--r);font-weight:700;width:16px;display:inline-block;text-align:center;font-size:12px}
+.child-badge{display:inline-block;background:var(--r);color:white;border-radius:10px;font-size:9px;padding:0 5px;margin-left:4px;vertical-align:middle}
 </style>
 </head>
 <body>
@@ -442,6 +449,11 @@ tbody tr:nth-child(even):hover td{background:#FEF2F2}
       <div class="form-group"><label>Impact $/an</label><input id="f-impact" type="number" placeholder="0" oninput="updatePreview()"></div>
       <div class="form-group"><label>Réduction hr/an</label><input id="f-hrs" type="number" placeholder="0" oninput="updatePreview()"></div>
       <div class="form-group"><label>No. B.T</label><input id="f-bc"></div>
+      <div class="form-group"><label>Sous-projet de</label>
+        <select id="f-parent">
+          <option value="">— Projet principal —</option>
+        </select>
+      </div>
       <div class="form-full">
         <div id="pib-detail" style="background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:10px 14px;font-size:11px;display:none">
           <div style="font-weight:700;color:var(--r);margin-bottom:8px;font-size:12px">📊 Détail du calcul PIB/h</div>
@@ -674,6 +686,7 @@ const MOIS3 = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','No
 const DOW = ['Lu','Ma','Me','Je','Ve','Sa','Di'];
 
 let projets = [];
+let collapsedParents = new Set(); // IDs des parents repliés
 let sortCol = 'cote', sortDir = -1;
 let calOff = 0;
 let SL = [];
@@ -696,7 +709,8 @@ async function loadProjets() {
 
 function recalc() {
   // Score PIB continu (0-100 pts) — proportionnel au max des actifs
-  const actifs = projets.filter(p => p.etat === 'Actif' || p.etat === 'Attente');
+  // Seulement les projets parents pour normaliser PIB et seuils
+  const actifs = projets.filter(p => (p.etat === 'Actif' || p.etat === 'Attente') && !p.parent_id);
   const pibs = actifs.map(pibVal).filter(v => v > 0);
   const maxPib = pibs.length > 0 ? Math.max(...pibs) : 1;
   projets.forEach(p => {
@@ -706,7 +720,8 @@ function recalc() {
     p._ps = null; // plus utilisé pour le calcul, gardé pour compatibilité
   });
   // Seuils dynamiques
-  const cotes = projets.map(coteBase).filter(c => c !== null);
+  // Seuils basés sur les projets parents seulement
+  const cotes = projets.filter(p => !p.parent_id).map(coteBase).filter(c => c !== null);
   if (cotes.length >= 2) {
     const moy = cotes.reduce((a,b)=>a+b) / cotes.length;
     const std = Math.sqrt(cotes.map(v=>(v-moy)**2).reduce((a,b)=>a+b) / (cotes.length-1));
@@ -844,6 +859,55 @@ function sortBy(col) {
   renderTable();
 }
 
+function toggleParent(id) {
+  if (collapsedParents.has(id)) collapsedParents.delete(id);
+  else collapsedParents.add(id);
+  renderTable();
+}
+
+function renderRow(p, isChild, hasChildren, isCollapsed, childCount) {
+  const ct = p.etat==='Terminé' ? null : coteTot(p);
+  const cl = p.etat==='Terminé' ? null : getClasse(ct);
+  const u  = p.etat==='Terminé' ? 0 : calcUrg(p);
+  const hasNote = p.notes && p.notes.trim();
+  const isTermine = p.etat === 'Terminé';
+
+  // Icône toggle pour les parents avec enfants
+  const toggle = hasChildren
+    ? `<span class="tr-toggle" onclick="event.stopPropagation();toggleParent(${p.id})">${isCollapsed?'▶':'▼'}</span>`
+    : '<span style="width:16px;display:inline-block"></span>';
+
+  // Badge nombre de sous-projets
+  const badge = hasChildren ? `<span class="child-badge">${childCount}</span>` : '';
+
+  // Nom avec toggle + badge ou indentation enfant
+  const nomCell = isChild
+    ? `<td class="td-nom" onclick="openModal(${p.id})" onmouseenter="showTip(event,${p.id})" onmouseleave="hideTip()">↳ ${isTermine?'<s>'+p.nom+'</s>':p.nom}</td>`
+    : `<td class="td-nom" onclick="openModal(${p.id})" onmouseenter="showTip(event,${p.id})" onmouseleave="hideTip()">${toggle}${isTermine?'<s>'+p.nom+'</s>':p.nom}${badge}</td>`;
+
+  return `<tr class="${isChild?'tr-child':''}" style="${isTermine?'opacity:0.6':''}">
+    ${nomCell}
+    <td class="td-c"><span class="note-ico ${hasNote?'has':'empty'}" onclick="openModal(${p.id})"></span></td>
+    <td class="td-c"><span class="bdg bdg-${p.etat||''}">${p.etat||'—'}</span></td>
+    <td class="td-c" style="font-size:10px">${p.resp||'—'}</td>
+    <td class="td-c">${isTermine?'<span style="color:var(--text3);font-size:10px">—</span>':ct!==null?`<span class="cote-badge">${(ct*100).toFixed(1)}%</span>`:'<span style="color:var(--text3);font-size:10px">À évaluer</span>'}</td>
+    <td class="td-c">${isTermine?'<span style="color:var(--text3);font-size:10px">—</span>':cl?`<span class="bdg bdg-${cl}">${cl}</span>`:'<span style="color:var(--text3);font-size:10px">—</span>'}</td>
+    <td class="td-c">${isTermine?'<span style="font-size:9px;color:var(--text3)">—</span>':u>0?`<span class="urg-badge">+${(u*100).toFixed(1)}%</span>`:'<span style="font-size:9px;color:var(--text3)">—</span>'}</td>
+    <td class="td-c" style="font-size:10px">${isTermine?'✓':p.prog!=null?p.prog+'%':'—'}</td>
+    <td class="td-c">${isTermine?'<span style="color:var(--text3)">—</span>':renderDateV(p)}</td>
+    <td class="td-c">${isTermine?'<span style="color:var(--text3)">—</span>':renderDateC(p)}</td>
+    <td class="td-c" style="font-size:10px">${isTermine?'—':pibVal(p)>0?(pibVal(p)*100).toFixed(2)+'%':'—'}</td>
+    <td class="td-c">${isTermine?'—':renderBar(p.sst)}</td>
+    <td class="td-c">${isTermine?'—':renderBar(p.arret)}</td>
+    <td class="td-c">${isTermine?'—':renderBar(p.strat)}</td>
+    <td class="td-c">${isTermine?'—':renderBar(p.jours)}</td>
+    <td class="td-c" style="white-space:nowrap">
+      <button class="btn" style="padding:2px 8px;font-size:10px" onclick="openModal(${p.id})">Éditer</button>
+      <button class="btn" style="padding:2px 8px;font-size:10px;color:var(--r)" onclick="deleteProjet(${p.id})">✕</button>
+    </td>
+  </tr>`;
+}
+
 function renderTable() {
   // Si l'onglet calendrier est actif, le rafraîchir aussi
   if (document.getElementById('view-cal').classList.contains('active')) {
@@ -878,34 +942,27 @@ function renderTable() {
     return;
   }
 
-  tbody.innerHTML = list.map(p => {
-    const ct = p.etat==='Terminé' ? null : coteTot(p);
-    const cl = p.etat==='Terminé' ? null : getClasse(ct);
-    const u  = p.etat==='Terminé' ? 0 : calcUrg(p);
-    const hasNote = p.notes && p.notes.trim();
-    const isTermine = p.etat === 'Terminé';
-    return `<tr style="${isTermine?'opacity:0.6':''}">
-      <td class="td-nom" onclick="openModal(${p.id})" onmouseenter="showTip(event,${p.id})" onmouseleave="hideTip()">${isTermine?'<s>'+p.nom+'</s>':p.nom}</td>
-      <td class="td-c"><span class="note-ico ${hasNote?'has':'empty'}" onclick="openModal(${p.id})" title="${hasNote?'Modifier commentaires':'Ajouter un commentaire'}"></span></td>
-      <td class="td-c"><span class="bdg bdg-${p.etat||''}">${p.etat||'—'}</span></td>
-      <td class="td-c" style="font-size:10px">${p.resp||'—'}</td>
-      <td class="td-c">${isTermine?'<span style="color:var(--text3);font-size:10px">—</span>':ct!==null?`<span class="cote-badge">${(ct*100).toFixed(1)}%</span>`:'<span style="color:var(--text3);font-size:10px">À évaluer</span>'}</td>
-      <td class="td-c">${isTermine?'<span style="color:var(--text3);font-size:10px">—</span>':cl?`<span class="bdg bdg-${cl}">${cl}</span>`:'<span style="color:var(--text3);font-size:10px">—</span>'}</td>
-      <td class="td-c">${isTermine?'<span style="font-size:9px;color:var(--text3)">—</span>':u>0?`<span class="urg-badge">+${(u*100).toFixed(1)}%</span>`:'<span style="font-size:9px;color:var(--text3)">—</span>'}</td>
-      <td class="td-c" style="font-size:10px">${isTermine?'✓':p.prog!=null?p.prog+'%':'—'}</td>
-      <td class="td-c">${isTermine?'<span style="color:var(--text3);font-size:10px">—</span>':renderDateV(p)}</td>
-      <td class="td-c">${isTermine?'<span style="color:var(--text3);font-size:10px">—</span>':renderDateC(p)}</td>
-      <td class="td-c" style="font-size:10px">${isTermine?'—':pibVal(p)>0?(pibVal(p)*100).toFixed(2)+'%':'—'}</td>
-      <td class="td-c">${isTermine?'—':renderBar(p.sst)}</td>
-      <td class="td-c">${isTermine?'—':renderBar(p.arret)}</td>
-      <td class="td-c">${isTermine?'—':renderBar(p.strat)}</td>
-      <td class="td-c">${isTermine?'—':renderBar(p.jours)}</td>
-      <td class="td-c" style="white-space:nowrap">
-        <button class="btn" style="padding:2px 8px;font-size:10px" onclick="openModal(${p.id})">Éditer</button>
-        <button class="btn" style="padding:2px 8px;font-size:10px;color:var(--r)" onclick="deleteProjet(${p.id})">✕</button>
-      </td>
-    </tr>`;
-  }).join('');
+  // Séparer parents et enfants
+  const parents = list.filter(p => !p.parent_id);
+  const childrenMap = {};
+  list.filter(p => p.parent_id).forEach(p => {
+    if (!childrenMap[p.parent_id]) childrenMap[p.parent_id] = [];
+    childrenMap[p.parent_id].push(p);
+  });
+
+  // Construire les lignes avec arborescence
+  const rows = [];
+  parents.forEach(p => {
+    const children = childrenMap[p.id] || [];
+    const hasChildren = children.length > 0;
+    const isCollapsed = collapsedParents.has(p.id);
+    rows.push(renderRow(p, false, hasChildren, isCollapsed, children.length));
+    if (hasChildren && !isCollapsed) {
+      children.forEach(child => rows.push(renderRow(child, true, false, false, 0)));
+    }
+  });
+
+  tbody.innerHTML = rows.join('');
   document.getElementById('count-label').textContent = `${list.length} projet(s) sur ${projets.length}`;
 }
 
@@ -1232,6 +1289,11 @@ function openModal(id=null) {
   document.getElementById('f-datec').value = p?.datec||'';
   document.getElementById('f-prog').value = p?.prog!=null?p.prog:'';
   document.getElementById('f-bc').value = p?.bc||'';
+  // Remplir le select parent
+  const selParent = document.getElementById('f-parent');
+  const parentsDispos = projets.filter(x => !x.parent_id && x.id !== (id||0) && x.etat !== 'Terminé');
+  selParent.innerHTML = '<option value="">— Projet principal —</option>' +
+    parentsDispos.map(x => `<option value="${x.id}" ${p?.parent_id==x.id?'selected':''}>${x.nom}</option>`).join('');
   SC = { sst:p?.sst??0, arret:p?.arret??0, strat:p?.strat??0, jours:p?.jours??0 };
   buildLvlBtns('btn-sst','desc-sst','sst',SC.sst);
   buildLvlBtns('btn-arret','desc-arret','arret',SC.arret);
@@ -1239,6 +1301,25 @@ function openModal(id=null) {
   buildLvlBtns('btn-jours','desc-jours','jours',SC.jours);
   buildGrilleModal();
   updatePreview();
+  // Si sous-projet : hériter des critères du parent au clic sur le select
+  document.getElementById('f-parent').onchange = function() {
+    const pid = parseInt(this.value);
+    if (pid) {
+      const par = projets.find(x => x.id === pid);
+      if (par && !editId) { // seulement pour les nouveaux sous-projets
+        SC = { sst:par.sst??0, arret:par.arret??0, strat:par.strat??0, jours:par.jours??0 };
+        document.getElementById('f-impact').value = par.impact||'';
+        document.getElementById('f-hrs').value = par.hrs||'';
+        document.getElementById('f-resp2').value = par.resp||'';
+        buildLvlBtns('btn-sst','desc-sst','sst',SC.sst);
+        buildLvlBtns('btn-arret','desc-arret','arret',SC.arret);
+        buildLvlBtns('btn-strat','desc-strat','strat',SC.strat);
+        buildLvlBtns('btn-jours','desc-jours','jours',SC.jours);
+        buildGrilleModal();
+        updatePreview();
+      }
+    }
+  };
   document.getElementById('overlay').classList.add('open');
 }
 
@@ -1265,6 +1346,7 @@ async function saveProjet() {
     datec:document.getElementById('f-datec').value,
     notes:document.getElementById('f-notes').value,
     bc:document.getElementById('f-bc').value,
+    parent_id: document.getElementById('f-parent').value ? parseInt(document.getElementById('f-parent').value) : null,
   };
   if (editId) {
     // Ajouter la référence d'ouverture pour détection de conflit

@@ -16,7 +16,10 @@ const pool = new Pool({
 async function initDB() {
   const client = await pool.connect();
   try {
-    // Tables
+    // Migration: ajouter parent_id si absent
+    await client.query(`ALTER TABLE projets ADD COLUMN IF NOT EXISTS parent_id INTEGER DEFAULT NULL`);
+
+  // Tables
     await client.query(`
       CREATE TABLE IF NOT EXISTS projets (
         id SERIAL PRIMARY KEY,
@@ -134,9 +137,9 @@ app.post('/api/projets', async (req, res) => {
   const p = req.body;
   try {
     const { rows } = await pool.query(
-      `INSERT INTO projets (nom,etat,resp,impact,hrs,sst,arret,strat,jours,prog,datev,datec,notes,bc,updated_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,NOW()) RETURNING *`,
-      [p.nom,p.etat,p.resp,p.impact,p.hrs,p.sst,p.arret,p.strat,p.jours,p.prog,p.datev,p.datec,p.notes,p.bc]
+      `INSERT INTO projets (nom,etat,resp,impact,hrs,sst,arret,strat,jours,prog,datev,datec,notes,bc,parent_id,updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,NOW()) RETURNING *`,
+      [p.nom,p.etat,p.resp,p.impact,p.hrs,p.sst,p.arret,p.strat,p.jours,p.prog,p.datev,p.datec,p.notes,p.bc,p.parent_id||null]
     );
     res.json(rows[0]);
   } catch(e) { res.status(500).json({error:e.message}); }
@@ -162,9 +165,9 @@ app.put('/api/projets/:id', async (req, res) => {
     }
     const { rows } = await pool.query(
       `UPDATE projets SET nom=$1,etat=$2,resp=$3,impact=$4,hrs=$5,sst=$6,arret=$7,strat=$8,
-       jours=$9,prog=$10,datev=$11,datec=$12,notes=$13,bc=$14,updated_at=NOW()
-       WHERE id=$15 RETURNING *`,
-      [p.nom,p.etat,p.resp,p.impact,p.hrs,p.sst,p.arret,p.strat,p.jours,p.prog,p.datev,p.datec,p.notes,p.bc,req.params.id]
+       jours=$9,prog=$10,datev=$11,datec=$12,notes=$13,bc=$14,parent_id=$15,updated_at=NOW()
+       WHERE id=$16 RETURNING *`,
+      [p.nom,p.etat,p.resp,p.impact,p.hrs,p.sst,p.arret,p.strat,p.jours,p.prog,p.datev,p.datec,p.notes,p.bc,p.parent_id||null,req.params.id]
     );
     res.json(rows[0]);
   } catch(e) { res.status(500).json({error:e.message}); }
