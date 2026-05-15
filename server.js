@@ -18,6 +18,12 @@ async function initDB() {
   try {
     // Migration: ajouter parent_id si absent
     await client.query(`ALTER TABLE projets ADD COLUMN IF NOT EXISTS parent_id INTEGER DEFAULT NULL`);
+  await client.query(`ALTER TABLE projets ADD COLUMN IF NOT EXISTS orig_sst INTEGER DEFAULT NULL`);
+  await client.query(`ALTER TABLE projets ADD COLUMN IF NOT EXISTS orig_arret INTEGER DEFAULT NULL`);
+  await client.query(`ALTER TABLE projets ADD COLUMN IF NOT EXISTS orig_strat INTEGER DEFAULT NULL`);
+  await client.query(`ALTER TABLE projets ADD COLUMN IF NOT EXISTS orig_jours INTEGER DEFAULT NULL`);
+  await client.query(`ALTER TABLE projets ADD COLUMN IF NOT EXISTS orig_impact NUMERIC DEFAULT NULL`);
+  await client.query(`ALTER TABLE projets ADD COLUMN IF NOT EXISTS orig_hrs NUMERIC DEFAULT NULL`);
 
   // Tables
     await client.query(`
@@ -165,9 +171,13 @@ app.put('/api/projets/:id', async (req, res) => {
     }
     const { rows } = await pool.query(
       `UPDATE projets SET nom=$1,etat=$2,resp=$3,impact=$4,hrs=$5,sst=$6,arret=$7,strat=$8,
-       jours=$9,prog=$10,datev=$11,datec=$12,notes=$13,bc=$14,parent_id=$15,updated_at=NOW()
-       WHERE id=$16 RETURNING *`,
-      [p.nom,p.etat,p.resp,p.impact,p.hrs,p.sst,p.arret,p.strat,p.jours,p.prog,p.datev,p.datec,p.notes,p.bc,p.parent_id||null,req.params.id]
+       jours=$9,prog=$10,datev=$11,datec=$12,notes=$13,bc=$14,parent_id=$15,
+       orig_sst=$16,orig_arret=$17,orig_strat=$18,orig_jours=$19,orig_impact=$20,orig_hrs=$21,
+       updated_at=NOW() WHERE id=$22 RETURNING *`,
+      [p.nom,p.etat,p.resp,p.impact,p.hrs,p.sst,p.arret,p.strat,p.jours,p.prog,
+       p.datev,p.datec,p.notes,p.bc,p.parent_id||null,
+       p.orig_sst??null,p.orig_arret??null,p.orig_strat??null,p.orig_jours??null,
+       p.orig_impact??null,p.orig_hrs??null,req.params.id]
     );
     res.json(rows[0]);
   } catch(e) { res.status(500).json({error:e.message}); }

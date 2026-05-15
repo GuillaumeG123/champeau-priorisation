@@ -1301,24 +1301,57 @@ function openModal(id=null) {
   buildLvlBtns('btn-jours','desc-jours','jours',SC.jours);
   buildGrilleModal();
   updatePreview();
-  // Si sous-projet : hériter des critères du parent au clic sur le select
+  // Si sous-projet : hériter SST/Arrêt/Strat/PIB du parent (pas le responsable ni les dates)
   document.getElementById('f-parent').onchange = function() {
     const pid = parseInt(this.value);
+    const cur = editId ? projets.find(x=>x.id===editId) : null;
     if (pid) {
       const par = projets.find(x => x.id === pid);
-      if (par && !editId) { // seulement pour les nouveaux sous-projets
-        SC = { sst:par.sst??0, arret:par.arret??0, strat:par.strat??0, jours:par.jours??0 };
-        document.getElementById('f-impact').value = par.impact||'';
-        document.getElementById('f-hrs').value = par.hrs||'';
-        document.getElementById('f-resp2').value = par.resp||'';
-        buildLvlBtns('btn-sst','desc-sst','sst',SC.sst);
-        buildLvlBtns('btn-arret','desc-arret','arret',SC.arret);
-        buildLvlBtns('btn-strat','desc-strat','strat',SC.strat);
-        buildLvlBtns('btn-jours','desc-jours','jours',SC.jours);
-        buildGrilleModal();
-        updatePreview();
+      if (par) {
+        // Sauvegarder les critères originaux avant d'écraser (pour pouvoir restaurer)
+        if (!cur?._origSaved) {
+          document.getElementById('f-parent').dataset.origSst   = SC.sst;
+          document.getElementById('f-parent').dataset.origArret = SC.arret;
+          document.getElementById('f-parent').dataset.origStrat = SC.strat;
+          document.getElementById('f-parent').dataset.origJours = SC.jours;
+          document.getElementById('f-parent').dataset.origImpact = document.getElementById('f-impact').value||'';
+          document.getElementById('f-parent').dataset.origHrs    = document.getElementById('f-hrs').value||'';
+        }
+        // Appliquer les critères du parent (SST/Arrêt/Strat/PIB seulement)
+        SC = { sst:parseInt(par.sst??0), arret:parseInt(par.arret??0), strat:parseInt(par.strat??0), jours:parseInt(par.jours??0) };
+        document.getElementById('f-impact').value = parseFloat(par.impact)||'';
+        document.getElementById('f-hrs').value    = parseFloat(par.hrs)||'';
+      }
+    } else {
+      // Parent retiré — restaurer les critères originaux
+      const ds = document.getElementById('f-parent').dataset;
+      if (ds.origSst !== undefined) {
+        SC = {
+          sst:   parseInt(ds.origSst),
+          arret: parseInt(ds.origArret),
+          strat: parseInt(ds.origStrat),
+          jours: parseInt(ds.origJours),
+        };
+        document.getElementById('f-impact').value = ds.origImpact||'';
+        document.getElementById('f-hrs').value    = ds.origHrs||'';
+      } else if (cur) {
+        // Restaurer depuis orig_* en DB si disponible
+        SC = {
+          sst:   parseInt(cur.orig_sst  ?? cur.sst  ?? 0),
+          arret: parseInt(cur.orig_arret ?? cur.arret ?? 0),
+          strat: parseInt(cur.orig_strat ?? cur.strat ?? 0),
+          jours: parseInt(cur.orig_jours ?? cur.jours ?? 0),
+        };
+        document.getElementById('f-impact').value = cur.orig_impact ?? cur.impact ?? '';
+        document.getElementById('f-hrs').value    = cur.orig_hrs    ?? cur.hrs    ?? '';
       }
     }
+    buildLvlBtns('btn-sst','desc-sst','sst',SC.sst);
+    buildLvlBtns('btn-arret','desc-arret','arret',SC.arret);
+    buildLvlBtns('btn-strat','desc-strat','strat',SC.strat);
+    buildLvlBtns('btn-jours','desc-jours','jours',SC.jours);
+    buildGrilleModal();
+    updatePreview();
   };
   document.getElementById('overlay').classList.add('open');
 }
@@ -1348,6 +1381,31 @@ async function saveProjet() {
     bc:document.getElementById('f-bc').value,
     parent_id: document.getElementById('f-parent').value ? parseInt(document.getElementById('f-parent').value) : null,
   };
+  // Si on associe un parent : sauvegarder les critères originaux en DB
+  const newParentId = data.parent_id;
+  const curProj = editId ? projets.find(x=>x.id===editId) : null;
+  const ds = document.getElementById('f-parent').dataset;
+  if (newParentId && (!curProj?.parent_id)) {
+    // Nouveau parent assigné — sauvegarder les orig
+    data.orig_sst    = ds.origSst    !== undefined ? parseInt(ds.origSst)    : (curProj?.sst    ?? null);
+    data.orig_arret  = ds.origArret  !== undefined ? parseInt(ds.origArret)  : (curProj?.arret  ?? null);
+    data.orig_strat  = ds.origStrat  !== undefined ? parseInt(ds.origStrat)  : (curProj?.strat  ?? null);
+    data.orig_jours  = ds.origJours  !== undefined ? parseInt(ds.origJours)  : (curProj?.jours  ?? null);
+    data.orig_impact = ds.origImpact !== undefined ? parseFloat(ds.origImpact)||null : (curProj?.impact ?? null);
+    data.orig_hrs    = ds.origHrs    !== undefined ? parseFloat(ds.origHrs)||null    : (curProj?.hrs    ?? null);
+  } else if (!newParentId && curProj?.parent_id) {
+    // Parent retiré — effacer les orig (les critères actuels sont les vrais)
+    data.orig_sst = data.orig_arret = data.orig_strat = data.orig_jours = null;
+    data.orig_impact = data.orig_hrs = null;
+  } else {
+    // Garder les orig existants
+    data.orig_sst    = curProj?.orig_sst    ?? null;
+    data.orig_arret  = curProj?.orig_arret  ?? null;
+    data.orig_strat  = curProj?.orig_strat  ?? null;
+    data.orig_jours  = curProj?.orig_jours  ?? null;
+    data.orig_impact = curProj?.orig_impact ?? null;
+    data.orig_hrs    = curProj?.orig_hrs    ?? null;
+  }
   if (editId) {
     // Ajouter la référence d'ouverture pour détection de conflit
     data._opened_at = _openedAt;
