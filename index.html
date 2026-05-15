@@ -710,7 +710,7 @@ async function loadProjets() {
 function recalc() {
   // Score PIB continu (0-100 pts) — proportionnel au max des actifs
   // Seulement les projets parents pour normaliser PIB et seuils
-  const actifs = projets.filter(p => (p.etat === 'Actif' || p.etat === 'Attente') && !p.parent_id);
+  const actifs = projets.filter(p => p.etat === 'Actif' && !p.parent_id);
   const pibs = actifs.map(pibVal).filter(v => v > 0);
   const maxPib = pibs.length > 0 ? Math.max(...pibs) : 1;
   projets.forEach(p => {
@@ -721,7 +721,7 @@ function recalc() {
   });
   // Seuils dynamiques
   // Seuils basés sur les projets parents seulement
-  const cotes = projets.filter(p => !p.parent_id).map(coteBase).filter(c => c !== null);
+  const cotes = projets.filter(p => p.etat === 'Actif' && !p.parent_id).map(coteBase).filter(c => c !== null);
   if (cotes.length >= 2) {
     const moy = cotes.reduce((a,b)=>a+b) / cotes.length;
     const std = Math.sqrt(cotes.map(v=>(v-moy)**2).reduce((a,b)=>a+b) / (cotes.length-1));
