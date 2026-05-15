@@ -1366,8 +1366,17 @@ document.getElementById('overlay').addEventListener('click', e => {
 });
 
 async function saveProjet() {
+  const btn = document.querySelector('#overlay .btn.primary');
+  if (btn.disabled) return; // Empêcher double-soumission
+  btn.disabled = true;
+  btn.textContent = '⏳ Enregistrement...';
   const nom = document.getElementById('f-nom').value.trim();
-  if (!nom) { alert('Le nom du projet est requis.'); return; }
+  if (!nom) {
+    btn.disabled = false;
+    btn.textContent = '💾 Enregistrer';
+    alert('Le nom du projet est requis.');
+    return;
+  }
   const data = {
     nom, etat:document.getElementById('f-etat2').value,
     resp:document.getElementById('f-resp2').value.trim(),
@@ -1438,6 +1447,10 @@ async function saveProjet() {
     }
   } else {
     await fetch('/api/projets', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+  }
+  if (document.querySelector('#overlay .btn.primary')) {
+    document.querySelector('#overlay .btn.primary').disabled = false;
+    document.querySelector('#overlay .btn.primary').textContent = '💾 Enregistrer';
   }
   closeModal();
   await loadProjets();
