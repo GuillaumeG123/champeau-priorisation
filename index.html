@@ -641,6 +641,7 @@ const POIDS = {
   ARRET_MAX:  90,  // Score max Arrêt potentiel (niv.5)
   STRAT_MAX: 100,  // Score max Impact stratégique (niv.5)
   PIB_MAX:   200,  // Score max PIB/h (continu 0→PIB_MAX)
+  URG_F:      75,  // Facteur urgence Excel $AB$8 — modifier ici si besoin
 };
 // Dénominateur calculé automatiquement — ne pas modifier
 const PIB_MAX = POIDS.PIB_MAX;
@@ -678,7 +679,7 @@ const P = {
   pib:  { s:[0,30,50,70,80,100] },             // legacy — non utilisé (score continu)
 };
 
-const URG_F = 0.5;
+const URG_F = POIDS.URG_F;  // Référence centralisée
 const NB_COLORS = ['#D0D0D0','#C0A8A8','#A87070','#8B3A3A','#7A1A1A','#5A0A0A'];
 const NB_TEXT   = ['#333333','#3A2020','#fff','#fff','#fff','#fff'];
 const MOIS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
