@@ -759,16 +759,19 @@ function calcUrg(p) {
   const dc = new Date(p.datec); dc.setHours(0,0,0,0);
   const j = Math.ceil((dc - today) / 864e5);
   if (j <= 0) return 0;
-  return Math.max(0, ((1-(p.prog||0)/100) * (P.jours.s[p.jours??0]||0)) / j * URG_F);
+  // parseInt nécessaire — PostgreSQL retourne jours comme string
+  const joursScore = P.jours.s[parseInt(p.jours??0)] || 0;
+  const prog = parseFloat(p.prog||0);
+  return Math.max(0, ((1 - prog/100) * joursScore) / j * URG_F);
 }
 
 function coteTot(p) {
   const b = coteBase(p); if (b === null) return null;
   const urg = calcUrg(p);
-  const maxUrg = Math.max(...projets.map(calcUrg), 0);
   const pibScore = p._pibScore ?? 0;
+  // Dénominateur fixe — l'urgence s'additionne sans gonfler le dénominateur
   const num = P.sst.s[parseInt(p.sst??0)] + pibScore + P.arret.s[parseInt(p.arret??0)] + P.strat.s[parseInt(p.strat??0)] + urg;
-  return Math.min(1, num / (DENOM + maxUrg));
+  return Math.min(1, num / DENOM);
 }
 
 function getClasse(c) {
@@ -892,7 +895,7 @@ function renderRow(p, isChild, hasChildren, isCollapsed, childCount) {
     <td class="td-c" style="font-size:10px">${p.resp||'—'}</td>
     <td class="td-c">${isTermine?'<span style="color:var(--text3);font-size:10px">—</span>':ct!==null?`<span class="cote-badge">${(ct*100).toFixed(1)}%</span>`:'<span style="color:var(--text3);font-size:10px">À évaluer</span>'}</td>
     <td class="td-c">${isTermine?'<span style="color:var(--text3);font-size:10px">—</span>':cl?`<span class="bdg bdg-${cl}">${cl}</span>`:'<span style="color:var(--text3);font-size:10px">—</span>'}</td>
-    <td class="td-c">${isTermine?'<span style="font-size:9px;color:var(--text3)">—</span>':u>0?`<span class="urg-badge">+${(u*100).toFixed(1)}%</span>`:'<span style="font-size:9px;color:var(--text3)">—</span>'}</td>
+    <td class="td-c">${isTermine?'<span style="font-size:9px;color:var(--text3)">—</span>':u>0?`<span class="urg-badge">+${(u/DENOM*100).toFixed(1)}%</span>`:'<span style="font-size:9px;color:var(--text3)">—</span>'}</td>
     <td class="td-c" style="font-size:10px">${isTermine?'✓':p.prog!=null?p.prog+'%':'—'}</td>
     <td class="td-c">${isTermine?'<span style="color:var(--text3)">—</span>':renderDateV(p)}</td>
     <td class="td-c">${isTermine?'<span style="color:var(--text3)">—</span>':renderDateC(p)}</td>
@@ -1255,11 +1258,10 @@ function updatePreview() {
     const j=Math.ceil((dc-today)/864e5);
     if(j>0) urg=Math.max(0,((1-prog/100)*(P.jours.s[SC.jours]||0))/j*URG_F);
   }
-  const maxUrg=Math.max(...projets.map(calcUrg),urg,0);
-  const total=Math.min(1,(P.sst.s[SC.sst]+pibScoreCont+P.arret.s[SC.arret]+P.strat.s[SC.strat]+urg)/(DENOM+maxUrg));
+  const total=Math.min(1,(P.sst.s[SC.sst]+pibScoreCont+P.arret.s[SC.arret]+P.strat.s[SC.strat]+urg)/DENOM);
   const cl=getClasse(total);
   document.getElementById('prev-base').textContent = (base*100).toFixed(1)+'%';
-  document.getElementById('prev-u').textContent = urg>0 ? '+'+(urg/(DENOM+maxUrg)*100).toFixed(2)+'%' : '0';
+  document.getElementById('prev-u').textContent = urg>0 ? '+'+(urg/DENOM*100).toFixed(2)+'%' : '0';
   document.getElementById('prev-cote').textContent = (total*100).toFixed(1)+'%';
   const pc=document.getElementById('prev-classe');
   pc.textContent=cl||'—'; pc.className=`bdg bdg-${cl||''}`;
