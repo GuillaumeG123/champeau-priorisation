@@ -1272,7 +1272,7 @@ function updatePreview() {
   const statLabel=(st)=>!st?'—':st==='done'?'✓ Terminé':st==='late'?'⚠ En retard':st==='warn'?'⚡ À risque':'✓ En voie';
   document.getElementById('prev-sv').textContent=statLabel(sv);
   document.getElementById('prev-sc').textContent=statLabel(sc);
-  document.getElementById('prev-urg').textContent=urg>0?(urg/(DENOM+maxUrg)*100).toFixed(2)+'%':'—';
+  document.getElementById('prev-urg').textContent=urg>0?'+'+(urg/DENOM*100).toFixed(2)+'%':'—';
 }
 
 function openModal(id=null) {
