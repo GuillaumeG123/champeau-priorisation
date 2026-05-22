@@ -299,6 +299,7 @@ tbody tr:nth-child(even):hover td{background:#FEF2F2}
             <th onclick="sortBy('arret')">Arrêt</th>
             <th onclick="sortBy('strat')">Strat.</th>
             <th onclick="sortBy('jours')">Jours</th>
+            <th onclick="sortBy('created')" style="min-width:75px">Créé le</th>
             <th style="width:90px"></th>
           </tr>
         </thead>
@@ -449,6 +450,9 @@ tbody tr:nth-child(even):hover td{background:#FEF2F2}
       <div class="form-group"><label>Impact $/an</label><input id="f-impact" type="number" placeholder="0" oninput="updatePreview()"></div>
       <div class="form-group"><label>Réduction hr/an</label><input id="f-hrs" type="number" placeholder="0" oninput="updatePreview()"></div>
       <div class="form-group"><label>No. B.T</label><input id="f-bc"></div>
+      <div class="form-group"><label>Date de création</label>
+        <div id="f-created" style="font-size:12px;padding:7px 10px;background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text3)">—</div>
+      </div>
       <div class="form-group"><label>Sous-projet de</label>
         <select id="f-parent">
           <option value="">— Projet principal —</option>
@@ -794,6 +798,12 @@ function dateStatus(p, ds) {
   return 'ok';
 }
 
+function fmtDateTime(d) {
+  if (!d) return '—';
+  const dt = new Date(d);
+  return `${dt.getDate().toString().padStart(2,'0')}/${(dt.getMonth()+1).toString().padStart(2,'0')}/${dt.getFullYear()}`;
+}
+
 function fmtDate(d) {
   if (!d) return '—';
   const dt = new Date(d);
@@ -905,6 +915,7 @@ function renderRow(p, isChild, hasChildren, isCollapsed, childCount) {
     <td class="td-c">${isTermine?'—':renderBar(p.arret)}</td>
     <td class="td-c">${isTermine?'—':renderBar(p.strat)}</td>
     <td class="td-c">${isTermine?'—':renderBar(p.jours)}</td>
+    <td class="td-c" style="font-size:10px;color:var(--text3);white-space:nowrap">${fmtDateTime(p.created_at)}</td>
     <td class="td-c" style="white-space:nowrap">
       <button class="btn" style="padding:2px 8px;font-size:10px" onclick="openModal(${p.id})">Éditer</button>
       <button class="btn" style="padding:2px 8px;font-size:10px;color:var(--r)" onclick="deleteProjet(${p.id})">✕</button>
@@ -933,7 +944,8 @@ function renderTable() {
       cote:[a.etat==='Terminé'?-99:coteTot(a)??-1, b.etat==='Terminé'?-99:coteTot(b)??-1], urg:[calcUrg(a),calcUrg(b)],
       pib:[pibVal(a),pibVal(b)], sst:[a.sst??-1,b.sst??-1], arret:[a.arret??-1,b.arret??-1],
       strat:[a.strat??-1,b.strat??-1], jours:[a.jours??-1,b.jours??-1],
-      prog:[a.prog??0,b.prog??0], datev:[a.datev||'',b.datev||''], datec:[a.datec||'',b.datec||'']
+      prog:[a.prog??0,b.prog??0], datev:[a.datev||'',b.datev||''], datec:[a.datec||'',b.datec||''],
+      created:[a.created_at||'',b.created_at||'']
     };
     const [va,vb] = map[sortCol]||[0,0];
     return va<vb?-sortDir:va>vb?sortDir:0;
@@ -1292,6 +1304,8 @@ function openModal(id=null) {
   document.getElementById('f-datec').value = p?.datec||'';
   document.getElementById('f-prog').value = p?.prog!=null?p.prog:'';
   document.getElementById('f-bc').value = p?.bc||'';
+  const createdEl = document.getElementById('f-created');
+  if (createdEl) createdEl.textContent = p?.created_at ? fmtDateTime(p.created_at) : 'Nouveau projet';
   // Remplir le select parent
   const selParent = document.getElementById('f-parent');
   const parentsDispos = projets.filter(x => !x.parent_id && x.id !== (id||0) && x.etat !== 'Terminé');
