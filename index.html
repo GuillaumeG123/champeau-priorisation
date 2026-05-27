@@ -284,7 +284,8 @@ tbody tr:nth-child(even):hover td{background:#FEF2F2}
       <table>
         <thead>
           <tr>
-            <th class="left" onclick="sortBy('nom')" style="min-width:165px">Projet</th>
+            <th onclick="sortBy('bc')" style="min-width:70px">No. B.T</th>
+      <th class="left" onclick="sortBy('nom')" style="min-width:165px">Projet</th>
             <th style="width:22px"></th>
             <th onclick="sortBy('etat')">État</th>
             <th onclick="sortBy('resp')">Responsable</th>
@@ -900,6 +901,7 @@ function renderRow(p, isChild, hasChildren, isCollapsed, childCount) {
     : `<td class="td-nom" onclick="openModal(${p.id})" onmouseenter="showTip(event,${p.id})" onmouseleave="hideTip()">${toggle}${isTermine?'<s>'+p.nom+'</s>':p.nom}${badge}</td>`;
 
   return `<tr class="${isChild?'tr-child':''}" style="${isTermine?'opacity:0.6':''}">
+    <td class="td-c" style="font-size:10px;color:var(--text2);font-weight:500">${p.bc||'—'}</td>
     ${nomCell}
     <td class="td-c"><span class="note-ico ${hasNote?'has':'empty'}" onclick="openModal(${p.id})"></span></td>
     <td class="td-c"><span class="bdg bdg-${p.etat||''}">${p.etat||'—'}</span></td>
@@ -940,7 +942,7 @@ function renderTable() {
   });
   list.sort((a,b) => {
     const map = {
-      nom:[a.nom,b.nom], etat:[a.etat,b.etat], resp:[a.resp||'',b.resp||''],
+      bc:[a.bc||'',b.bc||''], nom:[a.nom,b.nom], etat:[a.etat,b.etat], resp:[a.resp||'',b.resp||''],
       cote:[a.etat==='Terminé'?-99:coteTot(a)??-1, b.etat==='Terminé'?-99:coteTot(b)??-1], urg:[calcUrg(a),calcUrg(b)],
       pib:[pibVal(a),pibVal(b)], sst:[a.sst??-1,b.sst??-1], arret:[a.arret??-1,b.arret??-1],
       strat:[a.strat??-1,b.strat??-1], jours:[a.jours??-1,b.jours??-1],
